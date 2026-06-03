@@ -178,6 +178,23 @@ export class DevicesService {
     };
   }
 
+  /**
+   * Lê a energia de um dispositivo passando pela fila (não concorre com comandos).
+   * Usado pelo poller de energia (Passo 6). Retorna null se o device não mede energia.
+   */
+  pollEnergy(device: Device): Promise<import('./device-adapter.interface').EnergyData | null> {
+    const adapter = this.getAdapter(device);
+    return this.queue.enqueue(device.id, async () => {
+      await adapter.connect();
+      return adapter.readEnergy();
+    });
+  }
+
+  /** Lista dispositivos (entidade completa) que medem energia — uso interno do poller. */
+  listEnergyDevices(): Promise<Device[]> {
+    return this.prisma.device.findMany({ where: { supportsEnergy: true } });
+  }
+
   // ───────────────────────── internos ─────────────────────────
 
   /** Carrega a entidade completa (com segredos) — uso interno; nunca retornado à API. */
