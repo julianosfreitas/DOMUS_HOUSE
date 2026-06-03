@@ -1,0 +1,22 @@
+{
+  "name": "casai-spikes",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Scripts descartáveis de validação de hardware do CASAI (Passo 1 do runbook). NÃO fazem parte do build.",
+  "type": "module",
+  "scripts": {
+    "tuya": "tsx tuya-test.ts",
+    "tapo": "tsx tapo-test.ts",
+    "whisper": "tsx whisper-test.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "nodejs-whisper": "^0.2.9",
+    "tp-link-tapo-connect": "^2.0.15",
+    "tuyapi": "^7.7.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
