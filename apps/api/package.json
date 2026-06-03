@@ -12,15 +12,21 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
+    "test:cov": "jest --config ./test/jest-cov.json --coverage --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "audit": "audit-ci --config audit-ci.jsonc"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+  },
+  "overrides": {
+    "axios": "^1.8.4",
+    "ip": "^2.0.1",
+    "get-ip-range": "^4.0.1"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -59,6 +65,7 @@
     "@types/node": "^22.10.7",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",
+    "audit-ci": "^7.1.0",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.3",

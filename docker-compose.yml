@@ -1,3 +1,6 @@
+# CASAI — stack Docker pronto para o CasaOS (ao lado do Home Assistant).
+# Dev: `docker compose up -d casai-db` sobe só o Postgres.
+# Produção/CasaOS: `docker compose up -d` constrói e sobe tudo.
 services:
   casai-db:
     image: postgres:16-alpine
@@ -5,7 +8,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: casai_dev
     ports:
       - '5432:5432'
@@ -18,5 +21,50 @@ services:
       timeout: 5s
       retries: 10
 
+  # Broker MQTT para Zigbee (fase futura) — já provisionado no stack.
+  casai-mqtt:
+    image: eclipse-mosquitto:2
+    container_name: casai-mqtt
+    restart: unless-stopped
+    ports:
+      - '1883:1883'
+    volumes:
+      - ./docker/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - casai_mqtt_data:/mosquitto/data
+    healthcheck:
+      test: ['CMD-SHELL', 'mosquitto_sub -t healthcheck -E -W 2 || exit 0']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  casai-api:
+    build: ./apps/api
+    container_name: casai-api
+    restart: unless-stopped
+    depends_on:
+      casai-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@casai-db:5432/casai_dev
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env}
+      CASAI_ENCRYPTION_KEY: ${CASAI_ENCRYPTION_KEY:?defina CASAI_ENCRYPTION_KEY no .env}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3100}
+      PORT: 4000
+    ports:
+      - '4000:4000'
+
+  casai-web:
+    build: ./apps/web
+    container_name: casai-web
+    restart: unless-stopped
+    depends_on:
+      - casai-api
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-http://localhost:4000}
+    ports:
+      - '3100:3000'
+
 volumes:
   casai_pgdata:
+  casai_mqtt_data:

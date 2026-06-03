@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Build enxuto para o container Docker (CasaOS).
+  output: 'standalone',
   // Headers básicos de segurança para o dashboard.
   async headers() {
     return [

@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
@@ -23,6 +24,16 @@ async function bootstrap(): Promise<void> {
   );
 
   app.setGlobalPrefix('api', { exclude: ['health'] });
+
+  // Documentação OpenAPI em /docs (com auth Bearer).
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('CASAI API')
+    .setDescription('API do hub CASAI — dispositivos, energia, voz, automações e cenas.')
+    .setVersion('0.1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('docs', app, document);
 
   const port = Number(process.env.PORT ?? 4000);
   await app.listen(port);

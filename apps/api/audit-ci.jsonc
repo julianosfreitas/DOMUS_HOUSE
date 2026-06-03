@@ -1,0 +1,13 @@
+{
+  // Gate de segurança: falha em vulnerabilidades ALTA/CRÍTICA, exceto exceções
+  // revisadas abaixo. Usado pela CI (npm run audit).
+  "high": true,
+  "critical": true,
+  "allowlist": [
+    // GHSA-2p57-rm9w-gvfp — SSRF no pacote `ip`, transitivo de
+    // tp-link-tapo-connect (ip → get-ip-range → local-devices). Sem correção
+    // upstream; `local-devices` é usado só para descoberta de IP na LAN. Risco
+    // aceito no contexto local-first do CASAI. Revisar a cada bump da lib IoT.
+    "GHSA-2p57-rm9w-gvfp"
+  ]
+}
