@@ -1,0 +1,8 @@
+{
+  "name": "@casai/types",
+  "version": "0.1.0",
+  "description": "Tipos TypeScript compartilhados entre api e web",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "private": true
+}

@@ -1,0 +1,211 @@
+// CASAI — schema do banco (PostgreSQL 16)
+// Derivado da fonte de verdade (CLAUDE.md) e dos docs do projeto.
+// Princípios refletidos aqui:
+//  - Escopo por usuário: tudo que é dado de usuário tem userId e onDelete: Cascade.
+//  - Segredos cifrados: Device.localKeyEnc e Device.tapoPassEnc guardam AES-256-GCM.
+//  - Modo MOCK: Protocol.MOCK permite o sistema rodar sem hardware.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Enums ─────────────────────────
+
+enum Protocol {
+  TUYA
+  TAPO
+  MOCK
+  ZIGBEE // fase futura — declarado para a factory/migração não quebrar depois
+}
+
+enum DeviceType {
+  LIGHT
+  PLUG
+  SWITCH
+  SENSOR
+  OTHER
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  UNKNOWN
+}
+
+enum TriggerType {
+  SCHEDULE // cron / horário
+  MANUAL // disparada via /run
+  DEVICE_STATE // fase futura
+}
+
+enum ConditionType {
+  TIME_RANGE
+  WEEKDAY
+  DEVICE_STATE
+}
+
+enum ActionType {
+  DEVICE_COMMAND
+  SCENE_ACTIVATE
+  DELAY
+}
+
+// ───────────────────────── Modelos ─────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  // tarifa de energia em R$/kWh (média Brasil ~0.92). Usada no cálculo de custo.
+  energyRate   Float    @default(0.92)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+  rooms         Room[]
+  devices       Device[]
+  automations   Automation[]
+  scenes        Scene[]
+  voiceCommands VoiceCommand[]
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  // hash do refresh token (nunca o token cru) — MVP simples, sem rotação (TODO v2).
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Room {
+  id     String @id @default(uuid())
+  name   String
+  order  Int    @default(0)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  devices Device[]
+
+  @@unique([userId, name])
+}
+
+model Device {
+  id       String       @id @default(uuid())
+  name     String
+  type     DeviceType
+  protocol Protocol
+  status   DeviceStatus @default(UNKNOWN)
+
+  // Identificação na rede / no fabricante
+  externalId      String? // Tuya device id
+  ip              String?
+  protocolVersion String? // Tuya: 3.3 / 3.4 / 3.5
+
+  // Credenciais sensíveis — SEMPRE cifradas (AES-256-GCM). Nunca logadas.
+  localKeyEnc String? // Tuya local_key cifrada
+  tapoEmail   String? // e-mail da conta Tapo (não sensível isoladamente)
+  tapoPassEnc String? // senha Tapo cifrada
+
+  // Capacidades declaradas (a factory/adapter respeita)
+  supportsBrightness Boolean @default(false)
+  supportsColor      Boolean @default(false)
+  supportsColorTemp  Boolean @default(false)
+  supportsEnergy     Boolean @default(false)
+
+  // Estado/telemetria
+  lastSeen  DateTime?
+  lastState Json? // último DeviceState conhecido
+
+  roomId String?
+  room   Room?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  energyReadings EnergyReading[]
+
+  @@index([userId])
+  @@index([roomId])
+}
+
+model EnergyReading {
+  id       String @id @default(uuid())
+  deviceId String
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  watts    Float // potência instantânea (W)
+  kwhToday Float? // energia acumulada no dia (kWh)
+  kwhMonth Float? // energia acumulada no mês (kWh)
+  readAt   DateTime @default(now())
+
+  @@index([deviceId, readAt])
+}
+
+model Automation {
+  id      String  @id @default(uuid())
+  name    String
+  enabled Boolean @default(true)
+  userId  String
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  triggerType   TriggerType
+  // SCHEDULE: { cron: "0 7 * * *" } ou { time: "07:00", weekdays: [1,2,3,4,5] }
+  triggerConfig Json
+  // lista de { type: ConditionType, ... } avaliada antes de executar
+  conditions    Json        @default("[]")
+  // lista ordenada de { type: ActionType, deviceId?, command?, payload?, delaySeconds? }
+  actions       Json        @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Scene {
+  id     String  @id @default(uuid())
+  name   String
+  icon   String?
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // lista ordenada de { deviceId, command, payload?, delaySeconds? }
+  actions Json @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model VoiceCommand {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transcript String
+  intent     String?
+  deviceId   String?
+  payload    Json?
+  confidence Float?
+  success    Boolean @default(false)
+  // latência voz→execução em ms (métrica do TCC, meta < 2000)
+  latencyMs  Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
