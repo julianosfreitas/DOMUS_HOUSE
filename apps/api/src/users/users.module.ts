@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
+import { UsersService } from './users.service';
 
-// Preenchido no Passo 3 (auth/usuários).
-@Module({})
+@Module({
+  providers: [UsersService],
+  exports: [UsersService],
+})
 export class UsersModule {}
