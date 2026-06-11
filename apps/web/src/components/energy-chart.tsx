@@ -22,26 +22,26 @@ export function EnergyChart({ buckets }: { buckets: EnergyBucket[] }) {
       <AreaChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <defs>
           <linearGradient id="wattsFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(217 91% 60%)" stopOpacity={0.5} />
-            <stop offset="95%" stopColor="hsl(217 91% 60%)" stopOpacity={0} />
+            <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.5} />
+            <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(215 16% 47% / 0.2)" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
         <XAxis dataKey="hora" fontSize={11} tickLine={false} axisLine={false} />
         <YAxis fontSize={11} tickLine={false} axisLine={false} unit="W" />
         <Tooltip
           contentStyle={{
-            background: 'hsl(217 33% 12%)',
-            border: '1px solid hsl(217 33% 20%)',
+            background: 'var(--popover)',
+            border: '1px solid var(--border)',
             borderRadius: 12,
-            color: 'hsl(210 40% 96%)',
+            color: 'var(--popover-foreground)',
           }}
           formatter={(v: number) => [`${v} W`, 'Potência']}
         />
         <Area
           type="monotone"
           dataKey="watts"
-          stroke="hsl(217 91% 60%)"
+          stroke="var(--chart-2)"
           strokeWidth={2}
           fill="url(#wattsFill)"
         />
