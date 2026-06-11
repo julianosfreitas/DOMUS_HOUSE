@@ -11,6 +11,7 @@ import { CryptoService } from '../common/crypto/crypto.service';
 import { DeviceAdapterFactory } from './device-adapter.factory';
 import { DeviceCommandQueue } from './device-command.queue';
 import { DeviceEvents } from './device-events';
+import { NetworkScannerService } from './discovery/network-scanner.service';
 import {
   DeviceOfflineError,
   type DeviceAdapter,
@@ -52,6 +53,7 @@ export class DevicesService {
     private readonly factory: DeviceAdapterFactory,
     private readonly queue: DeviceCommandQueue,
     private readonly events: DeviceEvents,
+    private readonly scanner: NetworkScannerService,
   ) {}
 
   list(userId: string) {
@@ -167,15 +169,24 @@ export class DevicesService {
   }
 
   /**
-   * Descoberta de dispositivos na LAN. No MVP o pareamento é manual (a obtenção da
-   * local_key exige o fluxo do Tuya IoT — ver HARDWARE_SETUP.md), então retornamos
-   * vazio com orientação. Hook para descoberta automática em versão futura.
+   * Descoberta automática na LAN: broadcast Tuya (passivo) + varredura TCP +
+   * fabricante por OUI. Marca quais candidatos já estão cadastrados (por IP ou
+   * externalId) para o app não oferecer duplicar. Controlar ainda exige
+   * credenciais (local_key Tuya / senha Tapo) — a descoberta só reduz o trabalho.
    */
-  async discover(_userId: string): Promise<{ found: unknown[]; hint: string }> {
-    return {
-      found: [],
-      hint: 'Cadastre o dispositivo manualmente com id/local_key/ip (ver docs/HARDWARE_SETUP.md).',
-    };
+  async discover(userId: string) {
+    const { devices, hint } = await this.scanner.discover();
+    const owned = await this.prisma.device.findMany({
+      where: { userId },
+      select: { ip: true, externalId: true },
+    });
+    const knownIps = new Set(owned.map((d) => d.ip).filter(Boolean));
+    const knownIds = new Set(owned.map((d) => d.externalId).filter(Boolean));
+    const found = devices.map((d) => ({
+      ...d,
+      alreadyAdded: knownIps.has(d.ip) || (!!d.externalId && knownIds.has(d.externalId)),
+    }));
+    return { found, hint };
   }
 
   /**

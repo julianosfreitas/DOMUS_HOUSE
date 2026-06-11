@@ -26,6 +26,19 @@ export interface Device {
   lastState: DeviceState | null;
 }
 
+/** Candidato retornado pela descoberta automática de rede (POST /devices/discover). */
+export interface DiscoveredDevice {
+  ip: string;
+  mac?: string;
+  vendor?: string;
+  protocolGuess: 'TUYA' | 'TAPO' | null;
+  openPorts: number[];
+  externalId?: string;
+  protocolVersion?: string;
+  via: string[];
+  alreadyAdded: boolean;
+}
+
 /** Corpo do POST /devices — segredos vão em texto puro e a API os criptografa. */
 export interface CreateDevicePayload {
   name: string;

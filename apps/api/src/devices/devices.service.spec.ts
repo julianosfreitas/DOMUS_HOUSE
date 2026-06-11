@@ -41,6 +41,7 @@ describe('DevicesService', () => {
     emitAutomationTriggered: jest.Mock;
   };
   let service: DevicesService;
+  let scanner: { discover: jest.Mock };
 
   beforeEach(() => {
     prisma = {
@@ -61,13 +62,31 @@ describe('DevicesService', () => {
       emitEnergyReading: jest.fn(),
       emitAutomationTriggered: jest.fn(),
     };
+    scanner = { discover: jest.fn() };
     service = new DevicesService(
       prisma as never,
       crypto as never,
       factory as never,
       new DeviceCommandQueue(),
       events as never,
+      scanner as never,
     );
+  });
+
+  it('discover marca como já adicionado os candidatos com IP/externalId conhecidos', async () => {
+    scanner.discover.mockResolvedValue({
+      devices: [
+        { ip: '192.168.15.6', protocolGuess: 'TUYA', externalId: 'bf123', openPorts: [], via: [] },
+        { ip: '192.168.15.9', protocolGuess: 'TAPO', openPorts: [80], via: [] },
+      ],
+      hint: 'dica',
+    });
+    prisma.device.findMany.mockResolvedValue([{ ip: '192.168.15.6', externalId: 'bf123' }]);
+
+    const res = await service.discover('u1');
+
+    expect(res.found.find((d) => d.ip === '192.168.15.6')?.alreadyAdded).toBe(true);
+    expect(res.found.find((d) => d.ip === '192.168.15.9')?.alreadyAdded).toBe(false);
   });
 
   it('create criptografa a local_key antes de salvar', async () => {

@@ -4,6 +4,7 @@ import type {
   CreateDevicePayload,
   Device,
   DeviceState,
+  DiscoveredDevice,
   EnergyBucket,
   EnergySummary,
   GamificationSummary,
@@ -73,6 +74,9 @@ export const api = {
     request<Device>('/devices', { method: 'POST', body: JSON.stringify(payload) }),
 
   deleteDevice: (id: string) => request<{ ok: true }>(`/devices/${id}`, { method: 'DELETE' }),
+
+  discoverDevices: () =>
+    request<{ found: DiscoveredDevice[]; hint: string }>('/devices/discover', { method: 'POST' }),
 
   command: (id: string, command: string, extra: Record<string, unknown> = {}) =>
     request<DeviceState>(`/devices/${id}/command`, {

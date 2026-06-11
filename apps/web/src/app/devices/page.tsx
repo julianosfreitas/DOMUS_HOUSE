@@ -2,14 +2,20 @@
 
 import * as React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Lightbulb, Plug, Power, Trash2, Wifi } from 'lucide-react';
+import { Lightbulb, Plug, Power, Radar, Trash2, Wifi } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { AppShell } from '@/components/app-shell';
 import { api } from '@/lib/api';
-import type { CreateDevicePayload, Device, DeviceType, Protocol } from '@/lib/types';
+import type {
+  CreateDevicePayload,
+  Device,
+  DeviceType,
+  DiscoveredDevice,
+  Protocol,
+} from '@/lib/types';
 
 const PROTOCOL_LABEL: Record<string, string> = {
   TUYA: 'Tuya / Intelbras',
@@ -102,9 +108,30 @@ export default function DevicesPage() {
     },
   });
 
+  const scan = useMutation({
+    mutationFn: () => api.discoverDevices(),
+    onError: (e) => toast.error(e.message),
+  });
+
   function selectProtocol(p: Protocol) {
     setProtocol(p);
     setForm((f) => ({ ...f, ...PROTOCOL_PRESETS[p] }));
+  }
+
+  /** Pré-preenche o formulário com um candidato achado na varredura. */
+  function applyDiscovered(d: DiscoveredDevice) {
+    const p: Protocol = d.protocolGuess ?? 'TUYA';
+    setProtocol(p);
+    setForm({
+      ...EMPTY_FORM,
+      ...PROTOCOL_PRESETS[p],
+      ip: d.ip,
+      externalId: d.externalId ?? '',
+      protocolVersion: d.protocolVersion ?? '3.3',
+      name: p === 'TAPO' ? 'Tomada Tapo' : 'Lâmpada Intelbras',
+    });
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast.info(`${d.ip} preenchido — falta ${p === 'TAPO' ? 'e-mail/senha Tapo' : 'a local_key'}.`);
   }
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -138,6 +165,70 @@ export default function DevicesPage() {
 
   return (
     <AppShell title="Dispositivos" subtitle="Conecte aparelhos Tuya/Intelbras, Tapo ou simulados">
+      {/* Descoberta automática na rede */}
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle>Procurar na rede</CardTitle>
+              <CardDescription>
+                Reconhece automaticamente aparelhos Tuya/Intelbras e Tapo na sua LAN.
+              </CardDescription>
+            </div>
+            <Button onClick={() => scan.mutate()} disabled={scan.isPending}>
+              <Radar className={`mr-1 h-4 w-4 ${scan.isPending ? 'animate-spin' : ''}`} />
+              {scan.isPending ? 'Procurando…' : 'Procurar dispositivos'}
+            </Button>
+          </div>
+        </CardHeader>
+        {scan.data && (
+          <CardContent className="flex flex-col gap-2">
+            {scan.data.found.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhum dispositivo encontrado.</p>
+            )}
+            {scan.data.found.map((d) => (
+              <div
+                key={d.ip}
+                className="flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm"
+              >
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                    d.protocolGuess === 'TAPO' ? 'bg-secondary' : 'bg-secondary'
+                  }`}
+                >
+                  {d.protocolGuess === 'TAPO' ? (
+                    <Plug className="h-4 w-4" />
+                  ) : (
+                    <Lightbulb className="h-4 w-4" />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">
+                    {d.ip}
+                    <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-xs">
+                      {d.protocolGuess ? PROTOCOL_LABEL[d.protocolGuess] : 'Desconhecido'}
+                    </span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {d.vendor ?? 'Fabricante desconhecido'}
+                    {d.externalId ? ` · id ${d.externalId}` : ''}
+                    {d.openPorts.length ? ` · portas ${d.openPorts.join(', ')}` : ''}
+                  </p>
+                </div>
+                {d.alreadyAdded ? (
+                  <span className="text-xs text-muted-foreground">Já adicionado</span>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => applyDiscovered(d)}>
+                    Usar
+                  </Button>
+                )}
+              </div>
+            ))}
+            <p className="text-xs text-muted-foreground">{scan.data.hint}</p>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Cadastro guiado por protocolo */}
       <Card className="mb-6">
         <CardHeader>
