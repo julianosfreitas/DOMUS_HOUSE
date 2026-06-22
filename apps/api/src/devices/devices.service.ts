@@ -140,9 +140,12 @@ export class DevicesService {
    */
   async executeCommand(userId: string, id: string, dto: DeviceCommandDto): Promise<DeviceState> {
     const device = await this.findEntity(userId, id);
-    const adapter = this.getAdapter(device);
 
     return this.queue.enqueue(device.id, async () => {
+      // Resolve o adapter DENTRO da task: se um update()/remove() concorrente
+      // invalidou o cache entre o findEntity e a vez na fila, pegamos a instância
+      // fresca em vez de usar uma conexão já desconectada.
+      const adapter = this.getAdapter(device);
       try {
         await adapter.connect();
         await this.applyCommand(adapter, dto);
@@ -166,8 +169,8 @@ export class DevicesService {
    */
   async getState(userId: string, id: string): Promise<DeviceState> {
     const device = await this.findEntity(userId, id);
-    const adapter = this.getAdapter(device);
     return this.queue.enqueue(device.id, async () => {
+      const adapter = this.getAdapter(device);
       try {
         await adapter.connect();
         const state = await adapter.readState();
@@ -205,8 +208,8 @@ export class DevicesService {
    * Usado pelo poller de energia (Passo 6). Retorna null se o device não mede energia.
    */
   pollEnergy(device: Device): Promise<import('./device-adapter.interface').EnergyData | null> {
-    const adapter = this.getAdapter(device);
     return this.queue.enqueue(device.id, async () => {
+      const adapter = this.getAdapter(device);
       await adapter.connect();
       return adapter.readEnergy();
     });

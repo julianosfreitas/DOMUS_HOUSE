@@ -14,17 +14,24 @@ export class DeviceCommandQueue {
     // Encadeia após o anterior, ignorando a rejeição dele para não travar a fila.
     const next = previous.then(task, task);
     // O elo guardado nunca rejeita, senão um erro pararia toda a fila do dispositivo.
-    this.chains.set(
-      deviceId,
-      next.then(
-        () => undefined,
-        () => undefined,
-      ),
+    const link = next.then(
+      () => undefined,
+      () => undefined,
     );
+    this.chains.set(deviceId, link);
+    // Quando este elo terminar, se ainda for a CAUDA da fila (nenhum enqueue novo
+    // o substituiu), remove a entrada do Map — senão deviceIds vazam para sempre
+    // (inclusive de dispositivos já removidos).
+    void link.then(() => {
+      if (this.chains.get(deviceId) === link) {
+        this.chains.delete(deviceId);
+      }
+    });
     return next;
   }
 
-  /** Tamanho aproximado da fila (para diagnóstico/testes). */
+  /** Há comando em andamento/enfileirado para este device? (agora preciso: o Map
+   *  é limpo quando a fila esvazia.) */
   hasPending(deviceId: string): boolean {
     return this.chains.has(deviceId);
   }
