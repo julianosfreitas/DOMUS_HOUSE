@@ -1,9 +1,18 @@
-# CASAI — Casa Inteligente de baixo custo, por voz, 100% local
+# CASAI — arquitetura local-first e de baixo custo para automação residencial
 
 Sistema de automação residencial controlável por **voz em português brasileiro**,
-que funciona na **rede local** (offline-first), sem depender de nuvem. Projeto de TCC
-cujo objetivo é provar que uma família brasileira monta automação funcional por
-menos de **R$ 200** em hardware, sem nuvem nem conhecimento técnico.
+**local-first**: o controle cotidiano e o processamento da voz ocorrem na **rede
+local**, tratando a nuvem como conveniência (no comissionamento), não como requisito.
+Prova de conceito de TCC.
+
+> **Tese.** A democratização da casa inteligente depende **menos do preço do
+> hardware** (o Wi-Fi genérico/Tuya já é barato) e **mais da redução da barreira de
+> comissionamento** — instalar e conectar o dispositivo sem app do fabricante e sem
+> portais de desenvolvedor. Princípio operacional: **"nuvem uma vez, local para
+> sempre"** — a nuvem é usada só na instalação, para descobrir o device e obter a
+> chave local; daí em diante o controle é 100% na LAN.
+>
+> Esboço completo da monografia (v0.8): [docs/MONOGRAFIA_ESBOCO.md](docs/MONOGRAFIA_ESBOCO.md).
 
 - **Hub (backend):** NestJS + Prisma + PostgreSQL — controle local de Tuya/Intelbras
   e Tapo, voz (Whisper no hub), energia, rotinas, cenas e gamificação.
@@ -21,8 +30,25 @@ menos de **R$ 200** em hardware, sem nuvem nem conhecimento técnico.
 
 **✅ Pronto e verde:** app completo (login/Google/demo, dispositivos, rotinas, cenas,
 voz, energia, gamificação, PWA, tempo real) · **Tapo P110 controlado LOCAL de verdade**
-(KLAP) · Tuya Cloud provado 8/8 contra device virtual · CI verde (cobertura ~80%) ·
-deploy Render + Vercel.
+(KLAP, latências **201–332 ms**) · Tuya Cloud provado 8/8 contra device que expõe o
+mesmo modelo de dados da lâmpada-alvo (não a lâmpada física) · CI verde (cobertura
+~80%) · deploy Render + Vercel.
+
+**Critérios de sucesso (estado atual — monografia §6.4):**
+
+| Critério | Estado | Observação |
+|----------|--------|-----------|
+| Latência | 🟡 Parcial | Tapo medida (201–332 ms); agregação da latência de voz pendente |
+| Acurácia de voz | ⬜ A coletar | Infra de log existe; corpus pt-BR/WER/matriz de confusão pendentes (índice de confiança ≠ acurácia) |
+| Custo | ⬜ A consolidar | BOM em 2 cenários (inclui hub); devices ~**R$ 180** |
+| Usabilidade | ⬜ A coletar | Protocolo definido (n=3–5, tarefas observadas, **SUS**); coleta pendente |
+
+> **Honestidade da tese (monografia §5.8, §7.1):** instalar o próprio **hub** (runtime
+> + banco) ainda exige letramento técnico — é, hoje, uma barreira tão grande quanto
+> parear no app do fabricante. O caminho para a democratização plena é distribuir o
+> hub como **appliance pré-configurado** (imagem gravável / plug-and-play), com
+> **atualização de segurança assinada, aberta e federável** — tratado como **trabalho
+> futuro**.
 
 **🟡 Em andamento — controle FÍSICO da lâmpada Intelbras EWS 410:**
 
@@ -176,7 +202,12 @@ cd apps/api && npm i nodejs-whisper
 ```
 
 Sem ela, `/voice/command` por **texto** funciona normalmente; o áudio responde 503
-com orientação. O áudio é **descartado** após transcrever (LGPD).
+com orientação.
+
+**Retenção mínima (LGPD — minimização e finalidade):** o áudio é **descartado
+imediatamente** após transcrever; a **transcrição é apagada** logo após interpretar
+e executar o comando; o **log de auditoria** (reduzido, sem o conteúdo do comando) é
+mantido por no máximo **24 h** e expurgado por rotina diária automática.
 
 ## 6. Testes
 
@@ -250,3 +281,21 @@ MVP e cortes em [CLAUDE.md](CLAUDE.md) §9. Plano de evolução em
 [docs/ESCOPO_MELHORIA.md](docs/ESCOPO_MELHORIA.md). Geofencing por GPS (ex.: ligar a
 luz ao chegar em casa) é item de **fase futura** — o CASAI é local-first e não faz
 controle por geolocalização no MVP.
+
+**Trabalhos futuros (monografia §7.2):**
+- Experimento de voz: corpus pt-BR, múltiplos falantes, controle de ruído, **WER** +
+  matriz de confusão + latência por percentis.
+- Coleta de energia com leitura real do medidor; **BOM** comparativa (incremental +
+  completo, incluindo o hub).
+- Teste de **usabilidade** com o público-alvo (SUS).
+- Concluir o **comissionamento da lâmpada Wi-Fi EWS 410 em hardware**.
+- **Appliance plug-and-play** (imagem gravável) com update de segurança assinado,
+  aberto e federável — condição da democratização plena.
+- Horizonte: comissionamento **integralmente local**, sem qualquer uso de nuvem.
+
+**Posicionamento (monografia §3):** o CASAI não disputa NLU com Alexa/Nest/SmartThings
+(nuvem obrigatória) nem substitui Home Assistant/OpenHAB no comissionamento de rádio
+(Zigbee/Matter, que exige hardware extra). O recorte é comissionar e controlar, com a
+**menor barreira possível**, os dispositivos **Wi-Fi baratos** (Tuya) já presentes nos
+lares brasileiros — onde o comissionamento local sem nuvem nem app segue mal resolvido.
+Detalhe em [docs/RELATED_WORK_Home_Assistant.md](docs/RELATED_WORK_Home_Assistant.md).
