@@ -1,4 +1,4 @@
-// Service worker do CASAI — PWA instalável + offline básico do app shell.
+// Service worker do DOMUS — PWA instalável + offline básico do app shell.
 //
 // IMPORTANTE: navegações (HTML) usam NETWORK-FIRST. O cache-first antigo servia
 // o HTML velho após um redeploy (Vercel), e esse HTML aponta para chunks

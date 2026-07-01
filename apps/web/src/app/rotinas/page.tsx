@@ -196,7 +196,7 @@ function NewAutomationForm({
     <Card className="mb-6">
       <CardHeader>
         <CardTitle>Nova rotina</CardTitle>
-        <CardDescription>Quando chegar o horário, o CASAI executa as ações em ordem.</CardDescription>
+        <CardDescription>Quando chegar o horário, o DOMUS executa as ações em ordem.</CardDescription>
       </CardHeader>
       <CardContent>
         <form

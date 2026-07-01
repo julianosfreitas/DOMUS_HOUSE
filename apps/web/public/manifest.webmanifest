@@ -1,8 +1,8 @@
 {
-  "name": "CASAI — Casa Inteligente",
-  "short_name": "CASAI",
-  "description": "Controle sua casa por voz, em português, 100% na rede local.",
-  "start_url": "/dashboard",
+  "name": "DOMUS — Casa Inteligente",
+  "short_name": "DOMUS",
+  "description": "A nuvem, uma vez. A casa, para sempre. Controle sua casa por voz, em português, 100% na rede local.",
+  "start_url": "/voz",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",

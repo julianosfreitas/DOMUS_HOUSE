@@ -219,7 +219,7 @@ const CONNECT_GUIDES: Record<Protocol, { steps: React.ReactNode[]; note?: React.
   TUYA: {
     steps: [
       'Instale o app Tuya Smart (ou Intelbras Izy) e pareie a lâmpada na rede Wi-Fi de 2.4GHz — a de 5GHz não funciona.',
-      'Garanta que o hub CASAI e a lâmpada estão na MESMA rede 2.4GHz.',
+      'Garanta que o hub DOMUS e a lâmpada estão na MESMA rede 2.4GHz.',
       'Clique em “Procurar dispositivos” acima para preencher IP e Device ID automaticamente.',
       'Pegue a local_key: o jeito mais fácil é a ferramenta tuya-cli (npm i -g @tuyapi/cli e depois tuya-cli wizard), que lista id, chave e IP. Detalhes em docs/HARDWARE_SETUP.md.',
       'Cole IP, Device ID, versão (geralmente 3.3; se falhar tente 3.4) e a local_key abaixo.',
@@ -266,7 +266,7 @@ const CONNECT_GUIDES: Record<Protocol, { steps: React.ReactNode[]; note?: React.
       'Descubra o entity_id em HA → Ferramentas do Desenvolvedor → Estados (ex.: light.sala, switch.tomada).',
       'Cole só o entity_id abaixo. Não precisa de IP nem de local_key.',
     ],
-    note: 'O CASAI controla a entidade através do HA; o pareamento dos aparelhos continua sendo feito no próprio HA.',
+    note: 'O DOMUS controla a entidade através do HA; o pareamento dos aparelhos continua sendo feito no próprio HA.',
   },
   MOCK: {
     steps: [

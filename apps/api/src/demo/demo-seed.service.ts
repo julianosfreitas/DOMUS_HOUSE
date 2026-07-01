@@ -64,8 +64,9 @@ export class DemoSeedService implements OnModuleInit {
           data: {
             name: d.name,
             type: DeviceType[d.type],
-            protocol: Protocol.MOCK,
-            status: DeviceStatus.ONLINE,
+            protocol: Protocol[d.protocol],
+            status: d.protocol === 'MOCK' ? DeviceStatus.ONLINE : DeviceStatus.UNKNOWN,
+            ip: d.ip ?? null,
             supportsBrightness: d.supportsBrightness ?? false,
             supportsColor: d.supportsColor ?? false,
             supportsColorTemp: d.supportsColorTemp ?? false,

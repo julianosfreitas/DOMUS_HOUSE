@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-/* Tema CASAI — neutro monocromático (preto/branco) com escala de azul nos
+/* Tema DOMUS — neutro monocromático (preto/branco) com escala de azul nos
    gráficos. Tokens em hex no padrão shadcn/Tailwind v4 (@theme inline). */
 :root {
   --card: #ffffff;

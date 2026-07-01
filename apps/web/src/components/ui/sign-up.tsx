@@ -12,11 +12,11 @@ import React, {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
+import Image from 'next/image';
 import { cva, type VariantProps } from 'class-variance-authority';
 import {
   ArrowRight,
   Mail,
-  Home,
   User,
   Lock,
   Eye,
@@ -309,7 +309,7 @@ function GlassGoogleButton({ onCredential }: { onCredential: (idToken: string) =
         locale: 'pt-BR',
       });
     } catch (err) {
-      console.warn('[CASAI] Google Identity Services falhou ao inicializar:', err);
+      console.warn('[DOMUS] Google Identity Services falhou ao inicializar:', err);
     }
     return () => {
       // StrictMode (dev) monta/desmonta 2x — limpa pra render única.
@@ -352,12 +352,10 @@ interface AuthComponentProps {
 }
 
 const DefaultLogo = () => (
-  <div className="bg-primary text-primary-foreground rounded-md p-1.5">
-    <Home className="h-4 w-4" />
-  </div>
+  <Image src="/brand/domus-emblem.png" alt="DOMUS" width={30} height={38} priority className="h-9 w-auto" />
 );
 
-export const AuthComponent = ({ logo = <DefaultLogo />, brandName = 'CASAI' }: AuthComponentProps) => {
+export const AuthComponent = ({ logo = <DefaultLogo />, brandName = 'DOMUS' }: AuthComponentProps) => {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>('signin');
   const [name, setName] = useState('');
@@ -596,6 +594,11 @@ export const AuthComponent = ({ logo = <DefaultLogo />, brandName = 'CASAI' }: A
           <GradientBackground />
         </div>
         <fieldset disabled={modalStatus !== 'closed'} className="relative z-10 flex flex-col items-center gap-8 w-[300px] mx-auto p-4">
+          {/* Logotipo DOMUS + slogan */}
+          <div className="flex flex-col items-center gap-1">
+            <Image src="/brand/domus-logo.png" alt="DOMUS" width={150} height={190} priority className="h-24 w-auto" />
+            <span className="text-[11px] italic text-muted-foreground">A nuvem, uma vez. A casa, para sempre.</span>
+          </div>
           {/* Títulos por passo */}
           <AnimatePresence mode="wait">
             <motion.div

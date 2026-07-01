@@ -56,7 +56,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <AppShell title="CASAI" subtitle="Sua casa, no controle">
+    <AppShell title="DOMUS" subtitle="Sua casa, no controle">
       {/* Cenas em um toque */}
       {scenes.data && scenes.data.length > 0 && (
         <section className="mb-6 flex gap-2 overflow-x-auto pb-1">

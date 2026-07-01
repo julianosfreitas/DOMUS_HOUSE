@@ -142,7 +142,7 @@ export default function AddDevicePage() {
   }
 
   return (
-    <AppShell title="Adicionar dispositivo" subtitle="Conecte aparelhos Tuya/Intelbras, Tapo, Home Assistant ou simulados">
+    <AppShell title="Adicionar dispositivo" subtitle="Conecte aparelhos Tuya/Intelbras, Tapo ou Home Assistant">
       <Link
         href="/dispositivos"
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -224,9 +224,9 @@ export default function AddDevicePage() {
           <div
             role="group"
             aria-label="Protocolo do dispositivo"
-            className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-5"
+            className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4"
           >
-            {(['TUYA', 'TUYA_CLOUD', 'TAPO', 'HOME_ASSISTANT', 'MOCK'] as const).map((p) => (
+            {(['TUYA', 'TUYA_CLOUD', 'TAPO', 'HOME_ASSISTANT'] as const).map((p) => (
               <button
                 key={p}
                 type="button"
@@ -251,7 +251,6 @@ export default function AddDevicePage() {
                   {p === 'TUYA_CLOUD' && 'Lâmpada Tuya via nuvem (sem IP/local_key)'}
                   {p === 'TAPO' && 'Ex.: tomada Tapo P110 com medição de energia'}
                   {p === 'HOME_ASSISTANT' && 'Controla uma entidade de um Home Assistant existente'}
-                  {p === 'MOCK' && 'Para testar o sistema sem hardware'}
                 </span>
               </button>
             ))}

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Home, Sparkles, Plug, Trophy, Mic } from 'lucide-react';
@@ -88,11 +89,16 @@ export function AppShell({
       {/* Topbar */}
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-12 w-full max-w-5xl items-center gap-1 px-2 sm:px-4">
-          <Link href="/voz" className="flex shrink-0 items-center gap-1.5" aria-label="CASAI — início">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Home className="h-4 w-4" />
-            </span>
-            <span className="hidden text-sm font-bold tracking-tight lg:inline">CASAI</span>
+          <Link href="/voz" className="flex shrink-0 items-center gap-2" aria-label="DOMUS — início">
+            <Image
+              src="/brand/domus-emblem.png"
+              alt="DOMUS"
+              width={26}
+              height={33}
+              priority
+              className="h-8 w-auto"
+            />
+            <span className="hidden text-sm font-bold tracking-tight lg:inline">DOMUS</span>
           </Link>
 
           <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">

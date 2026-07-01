@@ -49,8 +49,9 @@ async function main(): Promise<void> {
         data: {
           name: d.name,
           type: DeviceType[d.type],
-          protocol: Protocol.MOCK,
-          status: DeviceStatus.ONLINE,
+          protocol: Protocol[d.protocol],
+          status: d.protocol === 'MOCK' ? DeviceStatus.ONLINE : DeviceStatus.UNKNOWN,
+          ip: d.ip ?? null,
           supportsBrightness: d.supportsBrightness ?? false,
           supportsColor: d.supportsColor ?? false,
           supportsColorTemp: d.supportsColorTemp ?? false,
@@ -62,7 +63,7 @@ async function main(): Promise<void> {
       }));
     deviceIdByName[d.name] = device.id;
   }
-  console.log(`✓ Dispositivos MOCK: ${DEMO_DEVICES.map((d) => d.name).join(', ')}`);
+  console.log(`✓ Dispositivos: ${DEMO_DEVICES.map((d) => d.name).join(', ')}`);
 
   for (const a of DEMO_AUTOMATIONS) {
     const exists = await prisma.automation.findFirst({

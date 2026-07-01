@@ -4,10 +4,17 @@ import { Providers } from '@/components/providers';
 import { ServiceWorkerRegister } from '@/components/sw-register';
 
 export const metadata: Metadata = {
-  title: 'CASAI — Casa Inteligente',
+  title: 'DOMUS — Casa Inteligente',
   description: 'Controle sua casa por voz, em português, 100% na rede local.',
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, title: 'CASAI', statusBarStyle: 'black-translucent' },
+  appleWebApp: { capable: true, title: 'DOMUS', statusBarStyle: 'black-translucent' },
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export const viewport: Viewport = {

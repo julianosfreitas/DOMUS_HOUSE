@@ -1,10 +1,21 @@
-# Esboço completo — Monografia CASAI (v0.8)
+# Esboço completo — Monografia DOMUS (v0.8 → ajustes v0.9)
 
 > Espelho estruturado de `CASAI_TCC_Monografia_v0.8.docx`.
-> **Título:** *CASAI: uma arquitetura local-first e de baixo custo para a
+> **Título:** *DOMUS: uma arquitetura local-first e de baixo custo para a
 > democratização da automação residencial no Brasil.*
 > Juliano Freitas de Albuquerque Bezerra · Faculdade Nova Roma · Recife, 2026.
 > Orientador: Prof. André Melo · Coorientador: Prof. Henning Summer.
+
+> **Atualização para a entrega (v0.8 → v0.9).** O sistema foi **renomeado de CASAI
+> para DOMUS** (latim *domus* = casa/lar), com identidade visual própria (emblema do
+> tucano em moldura clássica + logotipo + slogan *"A nuvem, uma vez. A casa, para
+> sempre."*, alinhada às cores da Faculdade Nova Roma). O nome do **repositório**
+> (`casai_tcc`) e identificadores técnicos internos permanecem por compatibilidade.
+> Os **dispositivos da casa passaram a ser apenas os físicos** — lâmpada
+> **Intelbras/Tuya EWS 410** e tomada **TP-Link Tapo P110**; o MOCK deixou de ser um
+> dispositivo da demonstração e permanece só como **recurso de desenvolvimento/testes
+> (CI)**. Os ajustes a aplicar no `.docx` estão em
+> [`MONOGRAFIA_AJUSTES_v0.9.md`](MONOGRAFIA_AJUSTES_v0.9.md).
 
 ## Tese central
 
@@ -112,20 +123,20 @@ Desenvolvimento (5), Resultados (6), Considerações finais (7).
 ## 3 TRABALHOS RELACIONADOS
 
 - **3.1** Alexa/Nest/SmartThings — NLU maduro, ampla compatibilidade, **nuvem
-  obrigatória** + perfilamento + descontinuação remota. CASAI não disputa
+  obrigatória** + perfilamento + descontinuação remota. DOMUS não disputa
   inteligência linguística, e sim operação local + soberania.
 - **3.2** Home Assistant — concorrente local maduro; **faz** comissionamento local de
   rádio (Zigbee/Z-Wave/Matter/ESPHome) sem app do fabricante. **Limites p/ o
   público-alvo:** (a) custo/montagem de hardware extra (dongles USB, border router);
   (b) varejo barato BR é **Wi-Fi/Tuya**, onde comissionamento local sem nuvem/app
   é problema mal resolvido; (c) instalar/configurar o próprio HA exige letramento
-  técnico. Recorte do CASAI: comissionar e controlar Wi-Fi barato com mínima barreira.
-- **3.3** Matter como estado da arte; CASAI **complementar, não concorrente** —
+  técnico. Recorte do DOMUS: comissionar e controlar Wi-Fi barato com mínima barreira.
+- **3.3** Matter como estado da arte; DOMUS **complementar, não concorrente** —
   enquanto parque instalado barato não migra. Cita **OpenHAB** (mesmas virtudes e
   exigências do HA).
 - **3.4** Síntese — **Quadro 1**, 6 eixos:
 
-  | Eixo | Alexa/Nest | SmartThings | Home Assistant | CASAI |
+  | Eixo | Alexa/Nest | SmartThings | Home Assistant | DOMUS |
   |------|-----------|-------------|----------------|-------|
   | Funciona sem nuvem | Não | Não | Sim | Sim |
   | Soberania dos dados | Baixa | Baixa | Alta | Alta |
@@ -153,13 +164,15 @@ Desenvolvimento (5), Resultados (6), Considerações finais (7).
   4. **Usabilidade/acessibilidade** — teste público-alvo (n=3–5), tarefas observadas,
      sucesso, tempo, escala **SUS**, consentimento informado.
 
-## 5 DESENVOLVIMENTO DO CASAI
+## 5 DESENVOLVIMENTO DO DOMUS
 
 - **5.1** Visão geral — hub (lógica) + PWA (interface/voz); tudo na LAN, via API +
   canal de tempo real.
-- **5.2** Adapter na prática — adaptadores Tapo, Tuya local, Tuya nuvem, Home Assistant
-  + simulação; fábrica seleciona por tipo; credenciais decifradas só em memória; fila
-  de comandos por dispositivo (1 conexão por vez).
+- **5.2** Adapter na prática — adaptadores Tapo, Tuya local, Tuya nuvem, Home Assistant;
+  fábrica seleciona por tipo; credenciais decifradas só em memória; fila de comandos por
+  dispositivo (1 conexão por vez). Há um adaptador **MOCK**, porém restrito a
+  **desenvolvimento e testes automatizados (CI)** — os dispositivos da casa na
+  demonstração são apenas os **físicos** (Tuya EWS 410 e Tapo P110).
 - **5.3** Voz no hub — porta abstrata; Whisper fixo pt-BR; capta trecho → transcreve →
   **descarta áudio** → intenção estruturada (variações coloquiais); ambiguidade pede
   confirmação. Descarte verificável no código (minimização).
@@ -174,8 +187,10 @@ Desenvolvimento (5), Resultados (6), Considerações finais (7).
   log de auditoria reduzido (sem conteúdo do comando) por ≤24h, expurgo diário
   automático**. Defende contra superfície de metadados ("ligar o cofre").
 - **5.7** Implantação — demo pública em infra de custo nulo (serviços gratuitos);
-  **sem controle de hardware físico remoto** (servidor não alcança a LAN) → demo
-  pública em modo simulado/nuvem; hardware real só na instalação local.
+  **sem controle de hardware físico remoto** (servidor não alcança a LAN). Como os
+  dispositivos passaram a ser apenas físicos, a demo pública exibe a **interface e o
+  fluxo de voz**, mas o **controle efetivo dos aparelhos ocorre só na instalação local**
+  (na mesma LAN da lâmpada Tuya e da tomada Tapo).
 - **5.8** **Hub como barreira atual + caminho do appliance** — instalar runtime+banco
   exige letramento técnico, é barreira tão grande quanto parear no app. Solução =
   distribuir hub como **appliance pré-configurado** (imagem em cartão/dispositivo

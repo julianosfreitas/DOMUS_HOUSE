@@ -1,5 +1,5 @@
 import { AuthComponent } from '@/components/ui/sign-up';
 
 export default function LoginPage() {
-  return <AuthComponent brandName="CASAI" />;
+  return <AuthComponent brandName="DOMUS" />;
 }

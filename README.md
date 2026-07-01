@@ -1,4 +1,9 @@
-# CASAI — arquitetura local-first e de baixo custo para automação residencial
+<p align="center">
+  <img src="apps/web/public/brand/domus-logo.png" alt="DOMUS" height="150">
+</p>
+<p align="center"><em>A nuvem, uma vez. A casa, para sempre.</em></p>
+
+# DOMUS — arquitetura local-first e de baixo custo para automação residencial
 
 Sistema de automação residencial controlável por **voz em português brasileiro**,
 **local-first**: o controle cotidiano e o processamento da voz ocorrem na **rede
@@ -210,7 +215,7 @@ cloudflared tunnel --url http://localhost:3000   # imprime uma URL https://…tr
 ```
 
 Com o proxy same-origin, **uma URL só** (do web) serve página + `/api` + `/socket.io`.
-Depois, no celular, **"Adicionar à tela inicial"** instala o CASAI como app.
+Depois, no celular, **"Adicionar à tela inicial"** instala o DOMUS como app.
 
 > Se o dispositivo **não tem microfone** (ex.: Mac mini), use um mic **USB/Bluetooth**
 > e acesse por `http://localhost:3000` no próprio computador — ou controle pelos
@@ -352,7 +357,7 @@ Em [docs/screenshots/](docs/screenshots/):
 
 MVP e cortes em [CLAUDE.md](CLAUDE.md) §9. Plano de evolução em
 [docs/ESCOPO_MELHORIA.md](docs/ESCOPO_MELHORIA.md). Geofencing por GPS (ex.: ligar a
-luz ao chegar em casa) é item de **fase futura** — o CASAI é local-first e não faz
+luz ao chegar em casa) é item de **fase futura** — o DOMUS é local-first e não faz
 controle por geolocalização no MVP.
 
 **Trabalhos futuros (monografia §7.2):**
@@ -366,7 +371,7 @@ controle por geolocalização no MVP.
   aberto e federável — condição da democratização plena.
 - Horizonte: comissionamento **integralmente local**, sem qualquer uso de nuvem.
 
-**Posicionamento (monografia §3):** o CASAI não disputa NLU com Alexa/Nest/SmartThings
+**Posicionamento (monografia §3):** o DOMUS não disputa NLU com Alexa/Nest/SmartThings
 (nuvem obrigatória) nem substitui Home Assistant/OpenHAB no comissionamento de rádio
 (Zigbee/Matter, que exige hardware extra). O recorte é comissionar e controlar, com a
 **menor barreira possível**, os dispositivos **Wi-Fi baratos** (Tuya) já presentes nos
