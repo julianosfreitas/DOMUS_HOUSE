@@ -5,11 +5,15 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   ValidateNested,
   ArrayMaxSize,
 } from 'class-validator';
+
+// 'HH:MM' 24h: 00:00–23:59. Usado para validar horários de gatilho/condição.
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 import { Type } from 'class-transformer';
 import { DEVICE_COMMANDS, type DeviceCommandName } from '../devices/dto/device-command.dto';
 
@@ -56,10 +60,12 @@ export class AutomationConditionDto {
   // TIME_RANGE: 'HH:MM' (suporta faixa que cruza a meia-noite, ex 22:00→06:00)
   @IsOptional()
   @IsString()
+  @Matches(HHMM, { message: 'start deve estar no formato HH:MM' })
   start?: string;
 
   @IsOptional()
   @IsString()
+  @Matches(HHMM, { message: 'end deve estar no formato HH:MM' })
   end?: string;
 
   // WEEKDAY: dias da semana 0=Dom .. 6=Sáb
@@ -80,6 +86,7 @@ export class TriggerConfigDto {
 
   @IsOptional()
   @IsString()
+  @Matches(HHMM, { message: 'time deve estar no formato HH:MM' })
   time?: string; // 'HH:MM'
 
   @IsOptional()

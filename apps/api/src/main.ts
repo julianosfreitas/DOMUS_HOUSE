@@ -10,8 +10,12 @@ async function bootstrap(): Promise<void> {
   // Headers de segurança (CLAUDE.md / Passo 3). Na LAN não usamos TLS no MVP.
   app.use(helmet());
 
-  // CORS restrito à origem do dashboard web.
-  const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3000';
+  // CORS restrito à(s) origem(ns) do dashboard web. Aceita lista separada por vírgula
+  // (ex.: "http://localhost:3000,http://localhost:3100") para cobrir next dev + docker compose.
+  const webOrigin = (process.env.WEB_ORIGIN ?? 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
   app.enableCors({ origin: webOrigin, credentials: true });
 
   // Validação global: nunca confiar no body cru.

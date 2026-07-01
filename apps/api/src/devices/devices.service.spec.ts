@@ -12,6 +12,9 @@ type PrismaMock = {
     count: jest.Mock;
     delete: jest.Mock;
   };
+  room: {
+    count: jest.Mock;
+  };
 };
 
 function makeAdapter(overrides: Partial<DeviceAdapter> = {}): DeviceAdapter {
@@ -55,6 +58,7 @@ describe('DevicesService', () => {
         count: jest.fn(),
         delete: jest.fn().mockResolvedValue({}),
       },
+      room: { count: jest.fn() },
     };
     crypto = { encrypt: jest.fn((x: string) => `enc(${x})`), decrypt: jest.fn() };
     factory = { create: jest.fn() };
@@ -162,5 +166,74 @@ describe('DevicesService', () => {
     await service.executeCommand('u1', 'd1', { command: 'turnOff' } as never);
 
     expect(factory.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('create rejeita roomId de cômodo que não é do usuário (sem criar o device)', async () => {
+    prisma.room.count.mockResolvedValue(0);
+    await expect(
+      service.create('u1', {
+        name: 'Lâmpada',
+        type: 'LIGHT',
+        protocol: 'MOCK',
+        roomId: 'cômodo-alheio',
+      } as never),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.device.create).not.toHaveBeenCalled();
+  });
+
+  it('update verifica posse do cômodo e conecta quando roomId é válido', async () => {
+    prisma.device.count.mockResolvedValue(1);
+    prisma.room.count.mockResolvedValue(1);
+    await service.update('u1', 'd1', { roomId: 'r1' } as never);
+    expect(prisma.room.count).toHaveBeenCalledWith({ where: { id: 'r1', userId: 'u1' } });
+    const arg = prisma.device.update.mock.calls[0][0];
+    expect(arg.data.room).toEqual({ connect: { id: 'r1' } });
+  });
+
+  it('update com roomId null desassocia o cômodo (disconnect)', async () => {
+    prisma.device.count.mockResolvedValue(1);
+    await service.update('u1', 'd1', { roomId: null } as never);
+    const arg = prisma.device.update.mock.calls[0][0];
+    expect(arg.data.room).toEqual({ disconnect: true });
+    expect(prisma.room.count).not.toHaveBeenCalled();
+  });
+
+  it('pollEnergy marca OFFLINE na transição e devolve null quando o device não responde', async () => {
+    factory.create.mockReturnValue(
+      makeAdapter({ connect: jest.fn().mockRejectedValue(new DeviceOfflineError('d1')) }),
+    );
+    const res = await service.pollEnergy({ id: 'd1', userId: 'u1', status: 'ONLINE' } as never);
+    expect(res).toBeNull();
+    expect(prisma.device.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'OFFLINE' } }),
+    );
+    expect(events.emitOffline).toHaveBeenCalledWith('u1', 'd1');
+  });
+
+  it('pollEnergy não regrava OFFLINE se o device já estava OFFLINE (evita spam)', async () => {
+    factory.create.mockReturnValue(
+      makeAdapter({ connect: jest.fn().mockRejectedValue(new DeviceOfflineError('d1')) }),
+    );
+    const res = await service.pollEnergy({ id: 'd1', userId: 'u1', status: 'OFFLINE' } as never);
+    expect(res).toBeNull();
+    expect(prisma.device.update).not.toHaveBeenCalled();
+    expect(events.emitOffline).not.toHaveBeenCalled();
+  });
+
+  it('pollEnergy recupera ONLINE quando o device volta a responder', async () => {
+    factory.create.mockReturnValue(
+      makeAdapter({ readEnergy: jest.fn().mockResolvedValue({ watts: 12 }) }),
+    );
+    const res = await service.pollEnergy({
+      id: 'd1',
+      userId: 'u1',
+      status: 'OFFLINE',
+      lastState: { on: true },
+    } as never);
+    expect(res).toEqual({ watts: 12 });
+    expect(prisma.device.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'ONLINE' }) }),
+    );
+    expect(events.emitStatusChanged).toHaveBeenCalledWith('u1', 'd1', { on: true }, 'ONLINE');
   });
 });

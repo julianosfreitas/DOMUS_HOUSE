@@ -26,6 +26,7 @@ import type { DeviceCommandDto } from './dto/device-command.dto';
 const PUBLIC_SELECT = {
   id: true,
   name: true,
+  nickname: true,
   type: true,
   protocol: true,
   status: true,
@@ -77,10 +78,14 @@ export class DevicesService {
   }
 
   async create(userId: string, dto: CreateDeviceDto) {
+    if (dto.roomId) {
+      await this.assertRoomOwnership(userId, dto.roomId);
+    }
     const device = await this.prisma.device.create({
       data: {
         userId,
         name: dto.name,
+        nickname: dto.nickname?.trim() || null,
         type: dto.type,
         protocol: dto.protocol,
         roomId: dto.roomId ?? null,
@@ -105,8 +110,13 @@ export class DevicesService {
 
   async update(userId: string, id: string, dto: UpdateDeviceDto) {
     await this.assertOwnership(userId, id);
+    if (dto.roomId) {
+      await this.assertRoomOwnership(userId, dto.roomId);
+    }
     const data: Prisma.DeviceUpdateInput = {
       name: dto.name,
+      // apelido: string vazia limpa (null); undefined = não mexe.
+      ...(dto.nickname !== undefined ? { nickname: dto.nickname.trim() || null } : {}),
       type: dto.type,
       protocol: dto.protocol,
       ip: dto.ip,
@@ -117,7 +127,11 @@ export class DevicesService {
       supportsColor: dto.supportsColor,
       supportsColorTemp: dto.supportsColorTemp,
       supportsEnergy: dto.supportsEnergy,
-      ...(dto.roomId !== undefined ? { room: { connect: { id: dto.roomId } } } : {}),
+      ...(dto.roomId !== undefined
+        ? dto.roomId === null
+          ? { room: { disconnect: true } } // permite desassociar o cômodo (roomId: null)
+          : { room: { connect: { id: dto.roomId } } }
+        : {}),
       ...(dto.localKey ? { localKeyEnc: this.crypto.encrypt(dto.localKey) } : {}),
       ...(dto.tapoPass ? { tapoPassEnc: this.crypto.encrypt(dto.tapoPass) } : {}),
     };
@@ -210,8 +224,39 @@ export class DevicesService {
   pollEnergy(device: Device): Promise<import('./device-adapter.interface').EnergyData | null> {
     return this.queue.enqueue(device.id, async () => {
       const adapter = this.getAdapter(device);
-      await adapter.connect();
-      return adapter.readEnergy();
+      try {
+        await adapter.connect();
+        const energy = await adapter.readEnergy();
+        // Recuperou: se estava OFFLINE, volta a ONLINE e avisa (só na transição).
+        if (device.status === 'OFFLINE') {
+          await this.prisma.device.update({
+            where: { id: device.id },
+            data: { status: 'ONLINE', lastSeen: new Date() },
+          });
+          this.events.emitStatusChanged(
+            device.userId,
+            device.id,
+            (device.lastState ?? {}) as unknown as DeviceState,
+            'ONLINE',
+          );
+        }
+        return energy;
+      } catch (err) {
+        // Device não respondeu ao poller: marca OFFLINE (só na transição, p/ não
+        // gravar/avisar a cada ciclo) e devolve null para o poller seguir.
+        if (err instanceof DeviceOfflineError) {
+          this.invalidateAdapter(device.id);
+          if (device.status !== 'OFFLINE') {
+            await this.prisma.device.update({
+              where: { id: device.id },
+              data: { status: 'OFFLINE' },
+            });
+            this.events.emitOffline(device.userId, device.id);
+          }
+          return null;
+        }
+        throw err;
+      }
     });
   }
 
@@ -235,6 +280,14 @@ export class DevicesService {
     const count = await this.prisma.device.count({ where: { id, userId } });
     if (count === 0) {
       throw new NotFoundException('Dispositivo não encontrado');
+    }
+  }
+
+  /** Garante que o cômodo pertence ao usuário (evita associar device a room de outro). */
+  private async assertRoomOwnership(userId: string, roomId: string): Promise<void> {
+    const count = await this.prisma.room.count({ where: { id: roomId, userId } });
+    if (count === 0) {
+      throw new NotFoundException('Cômodo não encontrado');
     }
   }
 

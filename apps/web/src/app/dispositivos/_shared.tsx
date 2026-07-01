@@ -1,12 +1,16 @@
 'use client';
 
 /* Componentes e mapas compartilhados entre a página de dispositivos ATIVOS
-   (`/devices`) e a página de CONEXÃO/adicionar (`/devices/add`). Mantido aqui
-   para zero duplicação após a separação das abas. */
+   (`/dispositivos`) e a página de CONEXÃO/adicionar (`/dispositivos/add`). Mantido
+   aqui para zero duplicação após a separação das abas. */
 import * as React from 'react';
-import { Lightbulb, Plug, Power, Trash2, Wifi } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Lightbulb, Mic, Plug, Power, PowerOff, Trash2, Wifi } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { api } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import type { Device, DeviceType, Protocol } from '@/lib/types';
 
 export const PROTOCOL_LABEL: Record<string, string> = {
@@ -59,17 +63,107 @@ export function DeviceRow({
           </p>
         </div>
         <StatusBadge status={device.status} />
+        <DeviceCommands device={device} />
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={onTest} disabled={testing}>
             <Power className="mr-1 h-4 w-4" />
-            {testing ? 'Testando…' : 'Testar conexão'}
+            {testing ? 'Testando…' : 'Testar'}
           </Button>
           <Button variant="outline" size="icon" onClick={onRemove} aria-label="Remover">
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
+
+        <NicknameEditor device={device} />
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Apelido de voz do dispositivo: um nome curto pelo qual o assistente reconhece o
+ * aparelho (ex.: "abajur", "cofre"), além do nome oficial. Salva via PATCH /devices.
+ */
+function NicknameEditor({ device }: { device: Device }) {
+  const qc = useQueryClient();
+  const [value, setValue] = React.useState(device.nickname ?? '');
+  React.useEffect(() => {
+    setValue(device.nickname ?? '');
+  }, [device.nickname]);
+
+  const mutation = useMutation({
+    mutationFn: (nickname: string) => api.updateDevice(device.id, { nickname }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['devices'] });
+      toast.success('Apelido salvo — o assistente já reconhece.');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const dirty = value.trim() !== (device.nickname ?? '');
+
+  return (
+    <div className="flex w-full items-center gap-2 border-t pt-3">
+      <label
+        htmlFor={`nick-${device.id}`}
+        className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
+      >
+        <Mic className="h-3.5 w-3.5" />
+        Apelido de voz
+      </label>
+      <input
+        id={`nick-${device.id}`}
+        value={value}
+        maxLength={40}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="ex.: abajur, cofre, luz principal"
+        className="h-8 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
+      {dirty && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          onClick={() => mutation.mutate(value.trim())}
+          disabled={mutation.isPending}
+        >
+          {mutation.isPending ? 'Salvando…' : 'Salvar'}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** Comandos rápidos do dispositivo (mesma ação que a voz executa). */
+function DeviceCommands({ device }: { device: Device }) {
+  const qc = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (command: 'turnOn' | 'turnOff') => api.command(device.id, command),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['devices'] }),
+    onError: (err: Error) => toast.error(err.message),
+  });
+  const on = device.lastState?.on ?? false;
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        size="sm"
+        variant={on ? 'default' : 'outline'}
+        disabled={mutation.isPending}
+        onClick={() => mutation.mutate('turnOn')}
+      >
+        <Power className={cn('mr-1 h-3.5 w-3.5', !on && 'text-chart-2')} />
+        Ligar
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={mutation.isPending}
+        onClick={() => mutation.mutate('turnOff')}
+      >
+        <PowerOff className="mr-1 h-3.5 w-3.5" />
+        Desligar
+      </Button>
+    </div>
   );
 }
 

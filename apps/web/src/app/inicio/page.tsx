@@ -114,7 +114,7 @@ export default function DashboardPage() {
           <Card>
             <CardContent className="pt-5 text-sm text-muted-foreground">
               Nenhum dispositivo ainda.{' '}
-              <Link href="/devices" className="underline hover:text-foreground">
+              <Link href="/dispositivos" className="underline hover:text-foreground">
                 Cadastre o primeiro aqui
               </Link>
               .

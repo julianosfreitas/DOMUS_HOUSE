@@ -66,7 +66,7 @@ export default function AddDevicePage() {
       toast.success(`"${d.name}" cadastrado`);
       void qc.invalidateQueries({ queryKey: ['devices'] });
       void qc.invalidateQueries({ queryKey: ['gamification'] });
-      router.push('/devices'); // volta para a lista de ativos
+      router.push('/dispositivos'); // volta para a lista de ativos
     },
     onError: (e) => toast.error(e.message),
   });
@@ -144,7 +144,7 @@ export default function AddDevicePage() {
   return (
     <AppShell title="Adicionar dispositivo" subtitle="Conecte aparelhos Tuya/Intelbras, Tapo, Home Assistant ou simulados">
       <Link
-        href="/devices"
+        href="/dispositivos"
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />

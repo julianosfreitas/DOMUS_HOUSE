@@ -3,7 +3,12 @@ import { EnergyService } from './energy.service';
 
 describe('EnergyService', () => {
   let prisma: {
-    energyReading: { create: jest.Mock; findMany: jest.Mock; findFirst: jest.Mock };
+    energyReading: {
+      create: jest.Mock;
+      findMany: jest.Mock;
+      findFirst: jest.Mock;
+      deleteMany: jest.Mock;
+    };
     device: { count: jest.Mock; findMany: jest.Mock };
     user: { findUniqueOrThrow: jest.Mock };
   };
@@ -17,6 +22,7 @@ describe('EnergyService', () => {
         create: jest.fn().mockResolvedValue({}),
         findMany: jest.fn(),
         findFirst: jest.fn(),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       device: { count: jest.fn(), findMany: jest.fn() },
       user: { findUniqueOrThrow: jest.fn() },
@@ -70,6 +76,28 @@ describe('EnergyService', () => {
     expect(s.costToday).toBe(2); // 2 kWh * R$1.00
     expect(s.costMonth).toBe(30);
     expect(s.projectedMonthlyCost).toBeGreaterThan(0);
+  });
+
+  it('summary projeta o mês usando os dias reais do mês corrente', async () => {
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ energyRate: 1.0 });
+    prisma.device.findMany.mockResolvedValue([{ id: 'd1' }]);
+    prisma.energyReading.findFirst.mockResolvedValue({ watts: 100, kwhToday: 1, kwhMonth: 10 });
+
+    const now = new Date();
+    const dayOfMonth = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const expected = Math.round((10 / dayOfMonth) * daysInMonth * 1.0 * 100) / 100;
+
+    const s = await service.summary('u1');
+    expect(s.projectedMonthlyCost).toBe(expected);
+  });
+
+  it('pruneOldReadings remove leituras além da janela de retenção', async () => {
+    prisma.energyReading.deleteMany.mockResolvedValue({ count: 7 });
+    const removed = await service.pruneOldReadings();
+    expect(removed).toBe(7);
+    const arg = prisma.energyReading.deleteMany.mock.calls[0][0];
+    expect(arg.where.readAt.lt).toBeInstanceOf(Date);
   });
 
   it('history lança NotFound se o dispositivo não é do usuário', async () => {

@@ -1,7 +1,9 @@
 import { io, type Socket } from 'socket.io-client';
 import { getToken } from './api';
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:4000';
+// Vazio/ausente = mesma origem do site (Socket.IO usa window.location) — o Next
+// repassa /socket.io ao hub. Assim funciona no celular via LAN/túnel HTTPS.
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || undefined;
 
 let socket: Socket | null = null;
 
@@ -9,7 +11,9 @@ let socket: Socket | null = null;
 export function getSocket(): Socket {
   if (!socket) {
     socket = io(WS_URL, {
-      transports: ['websocket'],
+      // Polling primeiro: atravessa o proxy same-origin do Next; faz upgrade p/ WS
+      // quando possível. Só WS falharia através do rewrite em dev.
+      transports: ['polling', 'websocket'],
       auth: { token: getToken() },
       reconnection: true,
     });

@@ -108,6 +108,7 @@ model Room {
 model Device {
   id       String       @id @default(uuid())
   name     String
+  nickname String? // apelido curto para o assistente de voz reconhecer (ex.: "abajur")
   type     DeviceType
   protocol Protocol
   status   DeviceStatus @default(UNKNOWN)

@@ -9,6 +9,8 @@
     "tuya:cloud": "tsx tuya-cloud-test.ts",
     "ha": "tsx home-assistant-test.ts",
     "tapo": "tsx tapo-test.ts",
+    "tapo:cycle": "tsx tapo-cycle.ts",
+    "tapo:toggle10": "tsx tapo-toggle10.ts",
     "whisper": "tsx whisper-test.ts"
   },
   "dependencies": {

@@ -1,6 +1,12 @@
-import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { CronJob } from 'cron';
+import { CronJob, CronTime } from 'cron';
 import { Prisma, type Automation } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeviceEvents } from '../devices/device-events';
@@ -54,6 +60,7 @@ export class AutomationsService implements OnModuleInit {
   }
 
   async create(userId: string, dto: CreateAutomationDto): Promise<Automation> {
+    this.validateSchedule(dto.triggerType, dto.triggerConfig);
     const automation = await this.prisma.automation.create({
       data: {
         userId,
@@ -70,7 +77,13 @@ export class AutomationsService implements OnModuleInit {
   }
 
   async update(userId: string, id: string, dto: UpdateAutomationDto): Promise<Automation> {
-    await this.get(userId, id);
+    const existing = await this.get(userId, id);
+    // Valida com a configuração EFETIVA (merge do que veio no PATCH + o já gravado)
+    // antes do UPDATE — evita persistir um agendamento que estouraria no scheduler.
+    this.validateSchedule(
+      dto.triggerType ?? existing.triggerType,
+      (dto.triggerConfig ?? existing.triggerConfig) as unknown as TriggerConfigDto,
+    );
     const automation = await this.prisma.automation.update({
       where: { id },
       data: {
@@ -116,11 +129,46 @@ export class AutomationsService implements OnModuleInit {
       this.logger.warn(`Automação ${automation.id} sem cron válido — não agendada`);
       return;
     }
-    const job = new CronJob(cronTime, () => {
-      void this.fire(automation.id);
-    });
-    this.scheduler.addCronJob(jobName(automation.id), job as unknown as CronJob);
-    job.start();
+    try {
+      const job = new CronJob(cronTime, () => {
+        void this.fire(automation.id);
+      });
+      this.scheduler.addCronJob(jobName(automation.id), job as unknown as CronJob);
+      job.start();
+    } catch (e: unknown) {
+      // Cron inválido em runtime/boot não pode derrubar o app nem interromper o
+      // reagendamento das demais automações (onModuleInit itera sobre todas).
+      this.logger.error(`Automação ${automation.id} não agendada (cron inválido): ${String(e)}`);
+    }
+  }
+
+  /**
+   * Valida a configuração de horário ANTES de persistir. Sem isso, um cron malformado
+   * só estouraria no agendamento (depois do INSERT), deixando a automação gravada porém
+   * inagendável e respondendo 500.
+   */
+  private validateSchedule(triggerType: string, trigger: TriggerConfigDto): void {
+    if (triggerType !== 'SCHEDULE') {
+      return;
+    }
+    const cronTime = this.toCron(trigger);
+    if (!cronTime) {
+      throw new UnprocessableEntityException(
+        'Configuração de horário inválida: informe "time" (HH:MM) ou "cron".',
+      );
+    }
+    if (!this.isValidCron(cronTime)) {
+      throw new UnprocessableEntityException('Expressão de horário (cron) inválida.');
+    }
+  }
+
+  private isValidCron(expr: string): boolean {
+    try {
+      const t = new CronTime(expr);
+      return Boolean(t);
+    } catch {
+      return false;
+    }
   }
 
   private unschedule(id: string): void {

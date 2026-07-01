@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Lightbulb, Plug, Power, Wifi, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
@@ -7,23 +8,22 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { api } from '@/lib/api';
+import { speak } from '@/lib/tts';
 import { cn } from '@/lib/utils';
 import type { Device } from '@/lib/types';
-
-/** Fala a confirmação (TTS) — acessibilidade: confirmar por voz além de visual. */
-function speak(text: string): void {
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'pt-BR';
-    window.speechSynthesis.speak(u);
-  }
-}
 
 export function DeviceWidget({ device }: { device: Device }) {
   const qc = useQueryClient();
   const on = device.lastState?.on ?? false;
-  const brightness = device.lastState?.brightness ?? 80;
+  const serverBrightness = device.lastState?.brightness ?? 80;
   const offline = device.status === 'OFFLINE';
+
+  // Slider controlado: estado local para arraste suave, ressincronizado quando o
+  // servidor manda um brilho novo (com defaultValue o slider ignorava atualizações).
+  const [brightness, setBrightness] = React.useState(serverBrightness);
+  React.useEffect(() => {
+    setBrightness(serverBrightness);
+  }, [serverBrightness]);
 
   const mutation = useMutation({
     mutationFn: (vars: { command: string; extra?: Record<string, unknown> }) =>
@@ -73,11 +73,12 @@ export function DeviceWidget({ device }: { device: Device }) {
           <div className="flex items-center gap-3">
             <Power className="h-4 w-4 text-muted-foreground" aria-hidden />
             <Slider
-              defaultValue={[brightness]}
+              value={[brightness]}
               min={0}
               max={100}
               step={5}
               aria-label={`Brilho de ${device.name}`}
+              onValueChange={(v) => setBrightness(v[0])}
               onValueCommit={(v) =>
                 mutation.mutate({ command: 'setBrightness', extra: { brightness: v[0] } })
               }

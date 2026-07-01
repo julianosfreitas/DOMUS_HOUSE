@@ -393,7 +393,7 @@ export const AuthComponent = ({ logo = <DefaultLogo />, brandName = 'CASAI' }: A
   const onSuccess = useCallback(() => {
     fireSideCanons();
     setModalStatus('success');
-    setTimeout(() => router.replace('/dashboard'), 1200);
+    setTimeout(() => router.replace('/voz'), 1200);
   }, [fireSideCanons, router]);
 
   async function doSignIn(emailArg = email, passwordArg = password) {

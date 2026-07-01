@@ -4,6 +4,7 @@ const DEVICES: ParsableDevice[] = [
   {
     id: 'l1',
     name: 'Luz da Sala',
+    type: 'LIGHT',
     roomName: 'Sala',
     supportsBrightness: true,
     supportsColor: true,
@@ -11,6 +12,7 @@ const DEVICES: ParsableDevice[] = [
   {
     id: 'p1',
     name: 'Tomada da Cozinha',
+    type: 'PLUG',
     roomName: 'Cozinha',
     supportsBrightness: false,
     supportsColor: false,
@@ -18,6 +20,7 @@ const DEVICES: ParsableDevice[] = [
   {
     id: 'q1',
     name: 'Luz do Quarto',
+    type: 'LIGHT',
     roomName: 'Quarto',
     supportsBrightness: true,
     supportsColor: false,
@@ -41,6 +44,29 @@ describe('VoiceCommandParser', () => {
     expect(r.intent).toBe(intent);
     expect(r.deviceId).toBe(deviceId);
     expect(r.confidence).toBeGreaterThanOrEqual(0.6);
+  });
+
+  // Tolerância a erros do STT (Whisper) — casa mesmo com a fala mal transcrita.
+  it.each([
+    ['liga a luz da sela', 'turnOn', 'l1'], // sela ≈ sala
+    ['desliga a tomada da cosinha', 'turnOff', 'p1'], // cosinha ≈ cozinha
+    ['acende a luz do quatro', 'turnOn', 'q1'], // quatro ≈ quarto
+  ])('STT impreciso: "%s" → %s no %s', (frase, intent, deviceId) => {
+    const r = parser.parse(frase, DEVICES);
+    expect(r.intent).toBe(intent);
+    expect(r.deviceId).toBe(deviceId);
+  });
+
+  it('usa a palavra de tipo: "desliga a tomada" casa o único PLUG', () => {
+    const r = parser.parse('desliga a tomada', DEVICES);
+    expect(r.intent).toBe('turnOff');
+    expect(r.deviceId).toBe('p1');
+  });
+
+  it('tipo ambíguo: "acende a luz" com duas luzes pede confirmação', () => {
+    const r = parser.parse('acende a luz', DEVICES);
+    expect(r.deviceId).toBeUndefined();
+    expect(r.suggestions?.length).toBeGreaterThan(1);
   });
 
   it('entende brilho em porcentagem', () => {

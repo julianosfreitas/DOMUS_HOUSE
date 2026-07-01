@@ -4,24 +4,26 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Home, Sparkles, Plug, Trophy, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ModeToggle } from '@/components/mode-toggle';
+import { Home, Sparkles, Plug, Trophy, Mic } from 'lucide-react';
+import { GradientBackground } from '@/components/ui/gradient-background';
+import { AccountMenu } from '@/components/account-menu';
 import { VoiceFab } from '@/components/voice-fab';
-import { api, getToken, clearTokens } from '@/lib/api';
+import { api, getToken, getRefresh, clearTokens } from '@/lib/api';
 import { disconnectSocket } from '@/lib/socket';
+import { unlockSfx } from '@/lib/sfx';
 import { cn } from '@/lib/utils';
 
 const NAV = [
-  { href: '/dashboard', label: 'Início', icon: Home },
-  { href: '/automations', label: 'Rotinas', icon: Sparkles },
-  { href: '/devices', label: 'Dispositivos', icon: Plug },
-  { href: '/achievements', label: 'Conquistas', icon: Trophy },
+  { href: '/voz', label: 'Voz', icon: Mic },
+  { href: '/inicio', label: 'Início', icon: Home },
+  { href: '/dispositivos', label: 'Dispositivos', icon: Plug },
+  { href: '/rotinas', label: 'Rotinas', icon: Sparkles },
+  { href: '/conquistas', label: 'Conquistas', icon: Trophy },
 ] as const;
 
 /**
- * Shell autenticado: sidebar no desktop, tabs fixas no rodapé no celular (PWA).
- * Inclui guarda de token, FAB de voz global e chip de nível (gamificação).
+ * Shell autenticado: topbar minimalista (marca · navegação · nível · conta).
+ * A conta (avatar) abre o menu com os ajustes (fala, voz, tema, sair).
  */
 export function AppShell({
   title,
@@ -46,7 +48,27 @@ export function AppShell({
 
   const game = useQuery({ queryKey: ['gamification'], queryFn: api.gamification, enabled: ready });
 
-  function logout() {
+  // Destrava o áudio (earcons de voz) no 1º gesto — necessário no mobile (iOS/Android),
+  // onde autoplay é bloqueado fora de um toque. Uma vez só, em qualquer página.
+  React.useEffect(() => {
+    const onFirst = () => unlockSfx();
+    window.addEventListener('pointerdown', onFirst, { once: true });
+    window.addEventListener('touchstart', onFirst, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', onFirst);
+      window.removeEventListener('touchstart', onFirst);
+    };
+  }, []);
+
+  async function logout() {
+    const refreshToken = getRefresh();
+    if (refreshToken) {
+      try {
+        await api.signOut(refreshToken);
+      } catch {
+        // ignora — limpamos a sessão local de qualquer forma
+      }
+    }
     clearTokens();
     disconnectSocket();
     router.replace('/login');
@@ -55,112 +77,72 @@ export function AppShell({
   if (!ready) return null;
 
   return (
-    <div className="flex min-h-dvh">
-      {/* Sidebar — desktop */}
-      <aside className="sticky top-0 hidden h-dvh w-56 flex-col border-r bg-sidebar p-4 md:flex">
-        <Link href="/dashboard" className="mb-6 flex items-center gap-2 px-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Home className="h-5 w-5" />
-          </span>
-          <span className="text-lg font-bold tracking-tight">CASAI</span>
-        </Link>
-        <nav className="flex flex-1 flex-col gap-1">
-          {NAV.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                pathname === href
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground',
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          ))}
-        </nav>
-        {game.data && (
-          <Link
-            href="/achievements"
-            className="mb-3 rounded-lg border bg-card p-3 text-xs hover:bg-accent"
-          >
-            <p className="font-medium">{game.data.level.name}</p>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-chart-2 transition-all"
-                style={{ width: `${game.data.progress}%` }}
-              />
-            </div>
-            <p className="mt-1 text-muted-foreground">{game.data.points} pts</p>
-          </Link>
-        )}
-        <div className="flex items-center justify-between">
-          <ModeToggle />
-          <Button variant="outline" size="icon" onClick={logout} aria-label="Sair">
-            <LogOut className="h-5 w-5" />
-          </Button>
+    <div className="relative flex min-h-dvh flex-col">
+      {/* Fundo aurora (mesmo da tela de login) — base sólida + blobs suaves atrás do conteúdo. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-background">
+        <div className="absolute inset-0 opacity-60">
+          <GradientBackground />
         </div>
-      </aside>
+      </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Header */}
-        <header className="flex items-center justify-between gap-3 p-4 sm:p-6 sm:pb-4">
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold tracking-tight">{title}</h1>
-            {subtitle && <p className="truncate text-sm text-muted-foreground">{subtitle}</p>}
-          </div>
+      {/* Topbar */}
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+        <div className="mx-auto flex h-12 w-full max-w-5xl items-center gap-1 px-2 sm:px-4">
+          <Link href="/voz" className="flex shrink-0 items-center gap-1.5" aria-label="CASAI — início">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Home className="h-4 w-4" />
+            </span>
+            <span className="hidden text-sm font-bold tracking-tight lg:inline">CASAI</span>
+          </Link>
+
+          <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+            {NAV.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-label={label}
+                  className={cn(
+                    'inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors',
+                    active
+                      ? 'bg-secondary text-foreground'
+                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                  )}
+                >
+                  <Icon className={cn('h-[18px] w-[18px] shrink-0', active && 'text-chart-2')} />
+                  <span className="hidden lg:inline">{label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
           <div className="flex shrink-0 items-center gap-2">
             {game.data && (
               <Link
-                href="/achievements"
-                className="hidden items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs sm:inline-flex md:hidden"
+                href="/conquistas"
+                className="hidden items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-xs lg:inline-flex"
               >
                 <Trophy className="h-3.5 w-3.5 text-chart-2" />
-                {game.data.points} pts
+                {game.data.points}
               </Link>
             )}
-            <div className="md:hidden">
-              <ModeToggle />
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={logout}
-              aria-label="Sair"
-              className="md:hidden"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <AccountMenu onLogout={() => void logout()} />
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* Conteúdo — espaço extra embaixo para as tabs do celular */}
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-28 sm:px-6 md:pb-10">
-          {children}
-        </main>
-      </div>
+      {/* Conteúdo */}
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-6 sm:px-6 md:pb-10">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+        </div>
+        {children}
+      </main>
 
-      {/* Tabs — celular (PWA na palma da mão) */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t bg-background/95 py-1.5 backdrop-blur md:hidden">
-        {NAV.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              'flex flex-col items-center gap-0.5 rounded-lg px-3 py-1 text-[11px]',
-              pathname === href ? 'text-foreground' : 'text-muted-foreground',
-            )}
-          >
-            <Icon className={cn('h-5 w-5', pathname === href && 'text-chart-2')} />
-            {label}
-          </Link>
-        ))}
-      </nav>
-
-      {/* FAB de voz global — acima das tabs no celular */}
-      <VoiceFab className="bottom-20 md:bottom-6" />
+      {/* FAB de voz global */}
+      <VoiceFab className="bottom-6" />
     </div>
   );
 }

@@ -16,8 +16,12 @@ Prova de conceito de TCC.
 
 - **Hub (backend):** NestJS + Prisma + PostgreSQL — controle local de Tuya/Intelbras
   e Tapo, voz (Whisper no hub), energia, rotinas, cenas e gamificação.
-- **App (web PWA):** Next.js 15 — instalável no celular ("Adicionar à tela inicial"),
-  tema monocromático claro/escuro, tempo real via Socket.IO.
+- **App (web PWA):** Next.js 15 — instalável no celular, **topbar** minimalista,
+  rotas pt-BR (`/voz` `/inicio` `/dispositivos` `/rotinas` `/conquistas`), tema
+  claro/escuro, tempo real via Socket.IO. A aba inicial é o **Assistente de voz**.
+- **Assistente de voz:** aba `/voz` com microfone + **comandos por dispositivo** (por
+  nome ou **apelido**), reconhecimento tolerante a erros de fala (estilo Alexa/Google),
+  e **voz da assistente** trocável (navegador pt-BR ou [Voicebox](https://voicebox.sh)).
 - **Princípios:** local-first, adapter pattern, modo MOCK (roda sem hardware),
   segredos cifrados (AES-256-GCM), escopo por usuário. Ver [CLAUDE.md](CLAUDE.md).
 
@@ -26,13 +30,21 @@ Prova de conceito de TCC.
 > a demo do TCC. **Não existe "API Intelbras" separada** (ADR-001): a linha Izy é
 > Tuya white-label, coberta pelo mesmo `tuyapi`.
 
-## 📍 Status atual — onde paramos (21/06/2026)
+## 📍 Status atual — onde paramos (01/07/2026)
 
-**✅ Pronto e verde:** app completo (login/Google/demo, dispositivos, rotinas, cenas,
-voz, energia, gamificação, PWA, tempo real) · **Tapo P110 controlado LOCAL de verdade**
-(KLAP, latências **201–332 ms**) · Tuya Cloud provado 8/8 contra device que expõe o
-mesmo modelo de dados da lâmpada-alvo (não a lâmpada física) · CI verde (cobertura
-~80%) · deploy Render + Vercel.
+**✅ Pronto e verde:** app completo (login/demo, dispositivos, rotinas, cenas, voz,
+energia, gamificação, PWA, tempo real) · **Tapo P110 controlado LOCAL de verdade**
+(KLAP, latências **201–332 ms**), **integrado ao app** (toggle e voz acionam a tomada
+física) · **voz por microfone funcionando** (Whisper `base` no hub, ~700 ms–1,4 s por
+comando) · parser de comando **tolerante a erro de STT** + **apelido de voz** por
+device · integração **Voicebox** (opcional) para a voz da assistente · Tuya Cloud
+provado 8/8 contra device que expõe o mesmo modelo de dados da lâmpada-alvo (não a
+lâmpada física) · CI verde (cobertura ~80%).
+
+> **Acesso no celular:** o mic exige **contexto seguro** (HTTPS ou `localhost`). No
+> Mac mini (sem mic embutido) use `localhost` no próprio computador com um mic
+> USB/BT; para o **celular**, use `npm run dev:https` (HTTPS na LAN) ou um túnel
+> HTTPS. Ver [§ Acesso no celular](#acesso-no-celular-mic--https).
 
 **Critérios de sucesso (estado atual — monografia §6.4):**
 
@@ -80,7 +92,7 @@ casai/
 ├── apps/
 │   ├── api/        # NestJS (hub): auth, devices+discovery, energy, voice,
 │   │              #   automations, scenes, gamification, demo, websocket
-│   └── web/        # Next.js 15 PWA: login, dashboard, rotinas, dispositivos, conquistas
+│   └── web/        # Next.js 15 PWA: voz (inicial), inicio, dispositivos, rotinas, conquistas
 ├── packages/types/ # tipos TS compartilhados
 ├── spikes/         # validação de hardware (Passo 1)
 ├── docker/         # initdb + mosquitto
@@ -93,19 +105,25 @@ casai/
 
 | Área | O que faz |
 |------|-----------|
-| **Login** | E-mail/senha (JWT), **Google** (Identity Services) e **botão demo** (1 clique). |
-| **Dispositivos** | Cadastro guiado por protocolo (Tuya/Intelbras, Tapo, MOCK), **descoberta automática na rede**, status online/offline, testar conexão, remover. |
-| **Rotinas** | Automações por horário + dias da semana, com construtor de ações (ligar/desligar/brilho, atraso). Ativar/desativar e executar agora. |
-| **Cenas** | Vários comandos em um toque (ex.: 🎬 Modo cinema), ativáveis no dashboard. |
-| **Voz** | Comando em pt-BR (Whisper no hub) via FAB de microfone. |
+| **Login** | E-mail/senha (JWT) e **botão demo** (1 clique). Google opcional (requer OAuth Client válido). |
+| **Assistente de voz** (`/voz`) | Aba inicial. Microfone (Whisper no hub) **e** comandos por dispositivo em 1 toque. Reconhece pelo **nome ou apelido**, tolerante a erros de fala. |
+| **Dispositivos** | Cadastro por protocolo (Tuya/Intelbras, Tapo, MOCK), **descoberta na rede**, status online/offline, testar conexão, **apelido de voz** por device, remover. |
+| **Rotinas** | Automações por horário + dias da semana (ligar/desligar/brilho, atraso). Ativar/desativar e executar agora. |
+| **Cenas** | Vários comandos em um toque (ex.: 🎬 Modo cinema), ativáveis na tela inicial. |
+| **Voz da assistente (TTS)** | Confirmação falada, ligável/desligável na topbar. Motor: **navegador (pt-BR)** ou **Voicebox** (voz clonada/preset local, opcional). |
 | **Energia** | Potência atual, kWh do dia, custo em R$ e projeção mensal, gráfico 24h. |
 | **Gamificação** | Pontos, níveis e conquistas que recompensam usar o sistema. |
 | **Tempo real** | Mudanças de estado/energia chegam via WebSocket sem recarregar. |
-| **PWA** | Instalável no celular, tabs no rodapé, tema claro/escuro. |
+| **PWA** | Instalável no celular, **topbar** responsiva, tema claro/escuro. |
 
 ## Pré-requisitos
 
-- Node.js 20+ · Docker + Docker Compose · (opcional) hardware Tuya/Tapo para uso real.
+- **Node.js 20+** · **PostgreSQL** (Docker Compose ou instalação local) ·
+  (opcional) hardware Tuya/Tapo para uso real.
+- **Para a voz por microfone (Whisper local):** `cmake` + build tools de C/C++ e
+  `ffmpeg` no PATH (o `nodejs-whisper` compila o whisper.cpp e converte o áudio).
+  No macOS: `brew install cmake ffmpeg`. Sem eles, o comando por **texto/botões**
+  funciona; o áudio responde 503.
 
 ## 1. Banco de dados
 
@@ -135,9 +153,11 @@ Credencial de demonstração semeada: **`dev@casai.local` / `Senha@123`**
 | `DATABASE_URL` / `TEST_DATABASE_URL` | conexão Postgres (dev/test) |
 | `JWT_SECRET` | assinatura dos tokens (≥ 32 chars) |
 | `CASAI_ENCRYPTION_KEY` | AES-256-GCM dos segredos de device (64 hex) |
-| `WHISPER_MODEL` / `WHISPER_LANGUAGE` | STT no hub (padrão `small` / `pt`) |
+| `WHISPER_MODEL` / `WHISPER_LANGUAGE` | STT no hub (padrão `base` / `pt`). `base` ≈ 700 ms/comando; `small` é mais acurado porém ~16 s no CPU |
+| `VOICE_STT_ENGINE` | `whisper` (padrão) ou `voicebox` (usa o Whisper do app Voicebox) |
+| `VOICEBOX_URL` / `VOICEBOX_PROFILE_ID` / `VOICEBOX_TTS_LANGUAGE` | integração opcional [Voicebox](https://voicebox.sh) (voz da assistente / STT). Vazio = usa navegador + Whisper |
 | `ENERGY_POLL_INTERVAL_SECONDS` | intervalo do polling de energia |
-| `WEB_ORIGIN` | origem permitida no CORS |
+| `WEB_ORIGIN` | origem permitida no CORS (dispensável com o proxy same-origin) |
 | `GOOGLE_CLIENT_ID` | login com Google (opcional — sem ele, `/auth/google` responde 503) |
 | `DEMO_MODE` | `true` semeia dados de demonstração no boot (deploy público) |
 
@@ -163,18 +183,38 @@ npm install
 npm run dev                           # dashboard em http://localhost:3000
 ```
 
-`apps/web/.env.local` aponta a web para a API:
+`apps/web/.env.local` — **proxy same-origin**: o web repassa `/api` e `/socket.io`
+ao hub (ver `rewrites` em `next.config.mjs`). Assim o navegador (inclusive o celular
+via LAN/túnel HTTPS) fala **só com o web** — sem CORS nem mixed-content:
 
 ```
-NEXT_PUBLIC_API_URL=http://localhost:4000/api
-NEXT_PUBLIC_WS_URL=http://localhost:4000
+NEXT_PUBLIC_API_URL=/api             # relativo → mesma origem → proxy p/ o hub
+NEXT_PUBLIC_WS_URL=                  # vazio → mesma origem (Socket.IO)
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=        # opcional (mesmo valor de GOOGLE_CLIENT_ID)
 ```
 
-### Instalar no celular (PWA)
+### Acesso no celular (mic) — HTTPS
 
-Acesse a web pelo navegador do celular (na mesma rede, ou pela URL pública) e use
-**"Adicionar à tela inicial"**. O CASAI abre como app em tela cheia.
+O microfone do navegador (`getUserMedia`) só funciona em **contexto seguro**:
+`https://` ou `http://localhost`. Pelo IP da LAN em HTTP, o mic é bloqueado. Duas
+formas de servir por HTTPS para o celular:
+
+```bash
+# 1) HTTPS na LAN (cert self-signed em apps/web/.certs) — roda junto do :3000
+cd apps/web && npm run dev:https        # https://<IP-do-host>:3443
+#    no celular: aceite o aviso de certificado uma vez.
+#    ⚠️ cert self-signed pode ser recusado por navegadores mobile para o mic.
+
+# 2) Túnel HTTPS confiável (sem aviso, mic garantido) — expõe o hub publicamente:
+cloudflared tunnel --url http://localhost:3000   # imprime uma URL https://…trycloudflare.com
+```
+
+Com o proxy same-origin, **uma URL só** (do web) serve página + `/api` + `/socket.io`.
+Depois, no celular, **"Adicionar à tela inicial"** instala o CASAI como app.
+
+> Se o dispositivo **não tem microfone** (ex.: Mac mini), use um mic **USB/Bluetooth**
+> e acesse por `http://localhost:3000` no próprio computador — ou controle pelos
+> **botões de comando** por dispositivo (sem mic).
 
 ## 4. Dispositivos: descoberta e cadastro
 
@@ -192,17 +232,36 @@ A tela **Dispositivos** tem dois caminhos:
 >   no banco; nunca é logada nem commitada.
 > - **Tapo:** e-mail e senha da conta TP-Link (também cifrada).
 
-## 5. Voz (Whisper no hub)
+Cada card de dispositivo tem um campo **"Apelido de voz"** — um nome curto (ex.:
+`abajur`, `cofre`) que a assistente reconhece além do nome oficial. Salva na hora.
 
-O STT roda no backend. Para habilitar a transcrição real, instale a lib (compila
-o whisper.cpp — precisa de build tools):
+## 5. Voz e assistente
+
+O reconhecimento (STT) roda **no hub** com Whisper (`nodejs-whisper` → whisper.cpp
+em CPU). O `nodejs-whisper` **compila o whisper.cpp com CMake** e baixa o modelo na
+primeira transcrição — por isso o pré-requisito `cmake` + `ffmpeg`:
 
 ```bash
-cd apps/api && npm i nodejs-whisper
+cd apps/api && npm i nodejs-whisper     # já vem no package; requer cmake/ffmpeg
 ```
 
-Sem ela, `/voice/command` por **texto** funciona normalmente; o áudio responde 503
-com orientação.
+Sem o build, `/voice/command` por **texto/botões** funciona; o áudio responde 503.
+
+**Como a assistente entende (estilo Alexa/Google):** o parser casa o dispositivo por
+**similaridade de tokens** (Damerau-Levenshtein) — tolera erros do STT (ex.: "taipo"
+≈ "tapo"); o **nome e o apelido** pesam mais que o cômodo; e a palavra de tipo
+("tomada" → tomada, "luz" → lâmpada) prioriza o aparelho certo. Ambiguidade → pede
+confirmação. Testado em `voice-command.parser.spec.ts`.
+
+**Apelido de voz:** em **Dispositivos**, cada aparelho tem um campo "Apelido de voz"
+(ex.: `abajur`, `cofre`). A assistente reconhece pelo apelido **e** pelo nome oficial.
+
+**Voz da assistente (TTS):** confirmação falada, ligável/desligável na topbar. Motor
+padrão = **SpeechSynthesis do navegador (pt-BR)**; opcionalmente **Voicebox** (app
+local, vozes clonadas/preset) — configurável na própria aba `/voz`. Se o Voicebox não
+estiver rodando, cai no navegador automaticamente (sem regressão).
+
+**Microfone:** exige contexto seguro — ver [§ Acesso no celular](#acesso-no-celular-mic--https).
 
 **Retenção mínima (LGPD — minimização e finalidade):** o áudio é **descartado
 imediatamente** após transcrever; a **transcrição é apagada** logo após interpretar
@@ -262,18 +321,32 @@ cobertura + `npm audit` (falha em alta/crítica) + secret scanning (gitleaks).
 ## Endpoints principais (API, prefixo `/api`)
 
 - `POST /auth/sign_up | sign_in | google | refresh | sign_out`, `GET /auth/me`
-- `GET/POST/PATCH/DELETE /devices`, `POST /devices/:id/command`, `POST /devices/discover`
+- `GET/POST/PATCH/DELETE /devices` (`PATCH` aceita `nickname`), `POST /devices/:id/command`, `POST /devices/discover`
 - `GET /devices/:id/energy/history`, `GET /energy/summary`
-- `POST /voice/transcribe`, `POST /voice/command`
+- `POST /voice/transcribe`, `POST /voice/command` (texto ou áudio)
+- `GET /voice/tts/status`, `POST /voice/tts/speak` (voz da assistente via Voicebox)
 - `GET/POST/PATCH/DELETE /automations`, `POST /automations/:id/run`
 - `GET/POST/PATCH/DELETE /scenes`, `POST /scenes/:id/activate`
 - `GET /gamification/summary`
 - WebSocket: `device:status_changed`, `device:offline`, `energy:reading`, `automation:triggered`
 
-## Capturas
+## Capturas (para os slides — tema claro)
 
-Em [docs/screenshots/](docs/screenshots/): login (claro/escuro), dashboard, rotinas,
-conquistas, descoberta de rede e telas no formato de celular.
+Em [docs/screenshots/](docs/screenshots/):
+
+| Arquivo | Tela |
+|---------|------|
+| `s-01-login.png` | Login (glass, tema claro) |
+| `s-02-inicio.png` | Início (energia + cenas + dispositivos) |
+| `s-03-dispositivos.png` | Dispositivos (Tapo + Tuya, status, **Ligar/Desligar** + **apelido de voz**) |
+| `s-04-voz.png` | Assistente de voz mãos-livres — orbe escutando (“Ouvindo…”) |
+| `s-05-energia.png` | Painel de energia (ilustrativo) |
+| `s-06-cenas.png` | Cenas (Modo cinema · Cheguei em casa · Acordar suave) |
+| `s-07-topbar.png` | Topbar responsiva (com avatar da conta) |
+| `s-08-apelido.png` | Editor de apelido de voz no card do device |
+| `s-09-voz-executado.png` | Comando de voz executado (“Ligar luz da sala” · Executado) |
+| `s-10-mobile-voz.png` | Assistente de voz no celular |
+| `s-11-conta.png` | Menu da conta (avatar → fala · voz · tema · sair) |
 
 ## Escopo e roadmap
 

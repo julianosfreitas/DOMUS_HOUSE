@@ -15,6 +15,12 @@ export class CreateDeviceDto {
   @MaxLength(80)
   name!: string;
 
+  // Apelido curto que o assistente de voz reconhece (ex.: "abajur", "cofre").
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  nickname?: string;
+
   @IsEnum(DeviceType)
   type!: DeviceType;
 

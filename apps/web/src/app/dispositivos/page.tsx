@@ -45,7 +45,7 @@ export default function DevicesPage() {
     <AppShell title="Dispositivos" subtitle="Seus aparelhos conectados">
       <div className="mb-4 flex justify-end">
         <Button asChild>
-          <Link href="/devices/add">
+          <Link href="/dispositivos/add">
             <Plus className="mr-1 h-4 w-4" />
             Adicionar dispositivo
           </Link>
@@ -59,7 +59,7 @@ export default function DevicesPage() {
           <div className="rounded-lg border border-dashed p-8 text-center">
             <p className="text-sm text-muted-foreground">Nenhum dispositivo cadastrado ainda.</p>
             <Button asChild className="mt-3">
-              <Link href="/devices/add">
+              <Link href="/dispositivos/add">
                 <Plus className="mr-1 h-4 w-4" />
                 Conectar meu primeiro dispositivo
               </Link>

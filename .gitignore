@@ -44,3 +44,5 @@ spikes/*.local.ts
 *.wav
 *.mp3
 !test/fixtures/voice/*.wav
+# Earcons do assistente (assets do app — precisam ir pro build/deploy)
+!apps/web/public/sounds/*.wav

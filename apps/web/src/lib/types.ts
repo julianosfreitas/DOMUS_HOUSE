@@ -12,6 +12,7 @@ export interface DeviceState {
 export interface Device {
   id: string;
   name: string;
+  nickname: string | null; // apelido de voz (o assistente reconhece por ele)
   type: DeviceType;
   protocol: string;
   status: DeviceStatus;
@@ -42,6 +43,7 @@ export interface DiscoveredDevice {
 /** Corpo do POST /devices — segredos vão em texto puro e a API os criptografa. */
 export interface CreateDevicePayload {
   name: string;
+  nickname?: string;
   type: DeviceType;
   protocol: Protocol;
   ip?: string;
@@ -128,4 +130,19 @@ export interface VoiceResult {
   needsConfirmation: boolean;
   suggestions?: string[];
   latencyMs: number;
+}
+
+/** Perfil de voz do Voicebox (app local de síntese/clonagem). */
+export interface VoiceboxProfile {
+  id: string;
+  name: string;
+  description?: string | null;
+  language?: string | null;
+}
+
+/** Status do Voicebox reportado pelo hub (GET /voice/tts/status). */
+export interface TtsStatus {
+  available: boolean;
+  baseUrl: string;
+  profiles: VoiceboxProfile[];
 }

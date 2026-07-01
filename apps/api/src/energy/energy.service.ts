@@ -26,10 +26,16 @@ const PERIOD_MS: Record<EnergyPeriod, number> = {
   '30d': 30 * 24 * 60 * 60 * 1000,
 };
 
+// Retenção das leituras de energia: um pouco acima da maior janela de consulta (30d).
+const RETENTION_DAYS = 35;
+// Teto de linhas carregadas em memória por consulta de histórico (defesa contra crescimento).
+const HISTORY_MAX_ROWS = 20_000;
+
 @Injectable()
 export class EnergyService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EnergyService.name);
   private readonly intervalName = 'energy-poll';
+  private readonly pruneIntervalName = 'energy-prune';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -50,12 +56,37 @@ export class EnergyService implements OnModuleInit, OnModuleDestroy {
     }, seconds * 1000);
     this.scheduler.addInterval(this.intervalName, interval);
     this.logger.log(`Polling de energia a cada ${seconds}s`);
+
+    // Retenção: remove leituras antigas de hora em hora p/ a tabela não crescer sem limite.
+    const prune = setInterval(
+      () => {
+        void this.pruneOldReadings().catch((e) =>
+          this.logger.warn(`limpeza de leituras falhou: ${String(e)}`),
+        );
+      },
+      60 * 60 * 1000,
+    );
+    this.scheduler.addInterval(this.pruneIntervalName, prune);
   }
 
   onModuleDestroy(): void {
-    if (this.scheduler.doesExist('interval', this.intervalName)) {
-      this.scheduler.deleteInterval(this.intervalName);
+    for (const name of [this.intervalName, this.pruneIntervalName]) {
+      if (this.scheduler.doesExist('interval', name)) {
+        this.scheduler.deleteInterval(name);
+      }
     }
+  }
+
+  /** Remove leituras de energia mais antigas que a janela de retenção. */
+  async pruneOldReadings(): Promise<number> {
+    const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000);
+    const { count } = await this.prisma.energyReading.deleteMany({
+      where: { readAt: { lt: cutoff } },
+    });
+    if (count > 0) {
+      this.logger.debug(`Retenção: ${count} leitura(s) de energia removida(s)`);
+    }
+    return count;
   }
 
   /**
@@ -108,9 +139,12 @@ export class EnergyService implements OnModuleInit, OnModuleDestroy {
       throw new NotFoundException('Dispositivo não encontrado');
     }
     const since = new Date(Date.now() - PERIOD_MS[period]);
+    // Limite de linhas em memória (take). A agregação por balde independe da ordem,
+    // então pegamos as mais recentes (desc) e ordenamos os baldes no fim.
     const readings = await this.prisma.energyReading.findMany({
       where: { deviceId, readAt: { gte: since } },
-      orderBy: { readAt: 'asc' },
+      orderBy: { readAt: 'desc' },
+      take: HISTORY_MAX_ROWS,
       select: { watts: true, readAt: true },
     });
 
@@ -122,11 +156,13 @@ export class EnergyService implements OnModuleInit, OnModuleDestroy {
       g.count += 1;
       groups.set(key, g);
     }
-    const buckets: HistoryBucket[] = [...groups.entries()].map(([bucket, g]) => ({
-      bucket,
-      avgWatts: Math.round((g.sum / g.count) * 100) / 100,
-      samples: g.count,
-    }));
+    const buckets: HistoryBucket[] = [...groups.entries()]
+      .map(([bucket, g]) => ({
+        bucket,
+        avgWatts: Math.round((g.sum / g.count) * 100) / 100,
+        samples: g.count,
+      }))
+      .sort((a, b) => (a.bucket < b.bucket ? -1 : 1));
     return { deviceId, period, granularity, buckets };
   }
 
@@ -164,10 +200,15 @@ export class EnergyService implements OnModuleInit, OnModuleDestroy {
 
     const costToday = round2(kwhToday * rate);
     const costMonth = round2(kwhMonth * rate);
-    const dayOfMonth = new Date().getDate();
-    // Projeção: extrapola o consumo do mês até o fim do mês (30 dias).
+    const now = new Date();
+    const dayOfMonth = now.getDate();
+    // Dias reais do mês corrente (28–31), em vez de 30 fixo.
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    // Projeção: extrapola o consumo até o fim do mês corrente.
     const projectedMonthlyCost =
-      kwhMonth > 0 ? round2((kwhMonth / dayOfMonth) * 30 * rate) : round2(kwhToday * 30 * rate);
+      kwhMonth > 0
+        ? round2((kwhMonth / dayOfMonth) * daysInMonth * rate)
+        : round2(kwhToday * daysInMonth * rate);
 
     return {
       totalWatts: round2(totalWatts),

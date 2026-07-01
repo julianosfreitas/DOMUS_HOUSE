@@ -87,6 +87,8 @@ export class VoiceService {
       select: {
         id: true,
         name: true,
+        nickname: true,
+        type: true,
         supportsBrightness: true,
         supportsColor: true,
         room: { select: { name: true } },
@@ -95,6 +97,8 @@ export class VoiceService {
     return devices.map((d) => ({
       id: d.id,
       name: d.name,
+      nickname: d.nickname,
+      type: d.type,
       roomName: d.room?.name ?? null,
       supportsBrightness: d.supportsBrightness,
       supportsColor: d.supportsColor,

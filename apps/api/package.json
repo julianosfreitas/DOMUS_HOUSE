@@ -48,7 +48,6 @@
     "class-validator": "^0.14.1",
     "google-auth-library": "^10.7.0",
     "helmet": "^8.0.0",
-    "nodejs-whisper": "^0.3.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
@@ -56,6 +55,9 @@
     "socket.io": "^4.8.1",
     "tp-link-tapo-connect": "^2.0.15",
     "tuyapi": "^7.7.0"
+  },
+  "optionalDependencies": {
+    "nodejs-whisper": "^0.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
