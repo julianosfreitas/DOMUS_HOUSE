@@ -2,17 +2,19 @@
 
 import * as React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock, Play, Plus, Trash2, Wand2, X } from 'lucide-react';
+import { Pencil, Play, Plus, Trash2, Wand2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { AppShell } from '@/components/app-shell';
+import { BrIcon } from '@/components/br-icon';
 import { api } from '@/lib/api';
 import type { Automation, AutomationAction, Device, Scene } from '@/lib/types';
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] as const;
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 const COMMAND_LABEL: Record<string, string> = {
   turnOn: 'Ligar',
@@ -20,6 +22,27 @@ const COMMAND_LABEL: Record<string, string> = {
   toggle: 'Alternar',
   setBrightness: 'Brilho',
 };
+
+/** Escolhe um ícone brasileiro (Brasil Icons) pelo tema do nome da cena/rotina. */
+function brIconFor(name: string): string {
+  const n = name.toLowerCase();
+  if (/balada|festa|carnaval/.test(n)) return '7'; // carnaval
+  if (/caf[eé]|manh[ãa]|acordar|amanhecer/.test(n)) return '8'; // café
+  if (/bom dia|sol|acender|acesa|clarear/.test(n)) return '$'; // sol
+  if (/cinema|filme/.test(n)) return 'C'; // máscara de carnaval
+  if (/cheguei|chegada|em casa|voltar/.test(n)) return 'a'; // Cristo Redentor
+  if (/noite|dormir|madrugada|econom/.test(n)) return 'Z'; // caipirinha (relax noturno)
+  if (/sair|apagar|desligar/.test(n)) return '5'; // palmeira
+  return 'D'; // tucano (marca)
+}
+
+/** Separa um emoji inicial do nome: "🪩 Balada" → ["🪩", "Balada"]. */
+function splitEmoji(name: string): [string | null, string] {
+  const m = name.match(
+    /^(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*)\s*(.*)$/u,
+  );
+  return m && m[2] ? [m[1], m[2]] : [null, name];
+}
 
 /** "Seg–Sex às 07:00" — resumo humano do gatilho, nunca cron cru. */
 function triggerSummary(a: Automation): string {
@@ -41,6 +64,9 @@ interface DraftAction {
   command: string;
   brightness: number;
   delaySeconds: number;
+  // Preservados na edição mesmo sem UI própria (ex.: cenas de cor Tuya).
+  color?: string;
+  colorTemp?: number;
 }
 
 export default function AutomationsPage() {
@@ -55,29 +81,36 @@ export default function AutomationsPage() {
     void qc.invalidateQueries({ queryKey: ['gamification'] });
   };
 
+  const deviceList = devices.data ?? [];
+
   return (
     <AppShell title="Rotinas" subtitle="Sua casa no piloto automático">
-      <NewAutomationForm devices={devices.data ?? []} onCreated={invalidate} />
+      <NewAutomationForm devices={deviceList} onCreated={invalidate} />
 
-      <section className="mb-8 flex flex-col gap-3">
+      <section className="mb-10 flex flex-col gap-2.5">
         {automations.data?.length === 0 && (
           <p className="text-sm text-muted-foreground">
             Nenhuma rotina ainda — crie a primeira acima. ☝️
           </p>
         )}
         {automations.data?.map((a) => (
-          <AutomationRow key={a.id} automation={a} onChanged={invalidate} />
+          <AutomationRow key={a.id} automation={a} devices={deviceList} onChanged={invalidate} />
         ))}
       </section>
 
-      <h2 className="mb-1 text-lg font-semibold">Cenas</h2>
-      <p className="mb-4 text-sm text-muted-foreground">
-        Vários comandos em um toque — também aparecem no Início.
-      </p>
-      <NewSceneForm devices={devices.data ?? []} onCreated={invalidate} />
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mb-4 flex items-center gap-2.5">
+        <BrIcon c="7" className="shrink-0 text-3xl text-muted-foreground/60" />
+        <div>
+          <h2 className="font-romario text-2xl leading-none tracking-tight">Cenas</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Vários comandos em um toque — também aparecem no Início.
+          </p>
+        </div>
+      </div>
+      <NewSceneForm devices={deviceList} onCreated={invalidate} />
+      <section className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         {scenes.data?.map((s) => (
-          <SceneRow key={s.id} scene={s} onChanged={invalidate} />
+          <SceneRow key={s.id} scene={s} devices={deviceList} onChanged={invalidate} />
         ))}
       </section>
     </AppShell>
@@ -88,11 +121,15 @@ export default function AutomationsPage() {
 
 function AutomationRow({
   automation,
+  devices,
   onChanged,
 }: {
   automation: Automation;
+  devices: Device[];
   onChanged: () => void;
 }) {
+  const [editing, setEditing] = React.useState(false);
+
   const toggle = useMutation({
     mutationFn: (enabled: boolean) => api.updateAutomation(automation.id, { enabled }),
     onSuccess: onChanged,
@@ -112,13 +149,31 @@ function AutomationRow({
     onError: (e) => toast.error(e.message),
   });
 
+  if (editing) {
+    return (
+      <AutomationForm
+        devices={devices}
+        initial={automation}
+        onDone={() => {
+          setEditing(false);
+          onChanged();
+        }}
+        onCancel={() => setEditing(false)}
+      />
+    );
+  }
+
+  const [, label] = splitEmoji(automation.name);
+
   return (
-    <Card>
-      <CardContent className="flex flex-wrap items-center gap-3 py-4">
+    <Card className="transition-colors hover:border-foreground/15">
+      <CardContent className="flex flex-wrap items-center gap-3 p-4">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-secondary">
+          <BrIcon c={brIconFor(automation.name)} className="text-2xl" />
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{automation.name}</p>
+          <p className="truncate font-medium tracking-tight">{label}</p>
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3" />
             {triggerSummary(automation)} · {automation.actions.length}{' '}
             {automation.actions.length === 1 ? 'ação' : 'ações'}
           </p>
@@ -128,61 +183,39 @@ function AutomationRow({
           onCheckedChange={(v) => toggle.mutate(v)}
           aria-label="Ativar rotina"
         />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => run.mutate()}
-          disabled={run.isPending}
-        >
-          <Play className="mr-1 h-4 w-4" />
-          {run.isPending ? 'Executando…' : 'Executar'}
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Remover rotina"
-          onClick={() => {
-            if (window.confirm(`Remover "${automation.name}"?`)) remove.mutate();
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => run.mutate()} disabled={run.isPending}>
+            <Play className="mr-1 h-4 w-4 text-chart-2" />
+            {run.isPending ? 'Executando…' : 'Executar'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 text-muted-foreground hover:text-foreground"
+            aria-label="Editar rotina"
+            onClick={() => setEditing(true)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 text-muted-foreground hover:text-foreground"
+            aria-label="Remover rotina"
+            onClick={() => {
+              if (window.confirm(`Remover "${automation.name}"?`)) remove.mutate();
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
 }
 
-function NewAutomationForm({
-  devices,
-  onCreated,
-}: {
-  devices: Device[];
-  onCreated: () => void;
-}) {
+function NewAutomationForm({ devices, onCreated }: { devices: Device[]; onCreated: () => void }) {
   const [open, setOpen] = React.useState(false);
-  const [name, setName] = React.useState('');
-  const [time, setTime] = React.useState('07:00');
-  const [weekdays, setWeekdays] = React.useState<number[]>([1, 2, 3, 4, 5]);
-  const [actions, setActions] = React.useState<DraftAction[]>([]);
-
-  const create = useMutation({
-    mutationFn: () =>
-      api.createAutomation({
-        name,
-        triggerType: 'SCHEDULE',
-        triggerConfig: { time, weekdays: weekdays.length === 7 ? undefined : weekdays },
-        actions: actions.map(toApiAction),
-      }),
-    onSuccess: () => {
-      toast.success(`Rotina "${name}" criada 🎉`);
-      setName('');
-      setActions([]);
-      setOpen(false);
-      onCreated();
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
   if (!open) {
     return (
       <Button className="mb-4" onClick={() => setOpen(true)}>
@@ -191,11 +224,65 @@ function NewAutomationForm({
       </Button>
     );
   }
+  return (
+    <AutomationForm
+      devices={devices}
+      onDone={() => {
+        setOpen(false);
+        onCreated();
+      }}
+      onCancel={() => setOpen(false)}
+    />
+  );
+}
+
+/** Formulário de rotina — cria (sem `initial`) ou edita (com `initial`). */
+function AutomationForm({
+  devices,
+  initial,
+  onDone,
+  onCancel,
+}: {
+  devices: Device[];
+  initial?: Automation;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const editing = !!initial;
+  const [name, setName] = React.useState(initial?.name ?? '');
+  const [time, setTime] = React.useState(initial?.triggerConfig.time ?? '07:00');
+  const [weekdays, setWeekdays] = React.useState<number[]>(
+    initial
+      ? initial.triggerConfig.weekdays?.length
+        ? initial.triggerConfig.weekdays
+        : ALL_DAYS
+      : [1, 2, 3, 4, 5],
+  );
+  const [actions, setActions] = React.useState<DraftAction[]>(
+    initial ? initial.actions.map(fromApiAction) : [],
+  );
+
+  const save = useMutation({
+    mutationFn: () => {
+      const payload = {
+        name,
+        triggerType: 'SCHEDULE' as const,
+        triggerConfig: { time, weekdays: weekdays.length === 7 ? undefined : weekdays },
+        actions: actions.map(toApiAction),
+      };
+      return editing ? api.updateAutomation(initial.id, payload) : api.createAutomation(payload);
+    },
+    onSuccess: () => {
+      toast.success(editing ? `Rotina "${name}" atualizada` : `Rotina "${name}" criada 🎉`);
+      onDone();
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   return (
     <Card className="mb-6">
       <CardHeader>
-        <CardTitle>Nova rotina</CardTitle>
+        <CardTitle>{editing ? 'Editar rotina' : 'Nova rotina'}</CardTitle>
         <CardDescription>Quando chegar o horário, o DOMUS executa as ações em ordem.</CardDescription>
       </CardHeader>
       <CardContent>
@@ -206,7 +293,7 @@ function NewAutomationForm({
               toast.error('Adicione pelo menos uma ação');
               return;
             }
-            create.mutate();
+            save.mutate();
           }}
           className="flex flex-col gap-4"
         >
@@ -251,10 +338,10 @@ function NewAutomationForm({
           <ActionBuilder devices={devices} actions={actions} setActions={setActions} />
 
           <div className="flex gap-2">
-            <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? 'Criando…' : 'Criar rotina'}
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? 'Salvando…' : editing ? 'Salvar alterações' : 'Criar rotina'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" onClick={onCancel}>
               Cancelar
             </Button>
           </div>
@@ -266,7 +353,17 @@ function NewAutomationForm({
 
 /* ───────────────────────── Cenas ───────────────────────── */
 
-function SceneRow({ scene, onChanged }: { scene: Scene; onChanged: () => void }) {
+function SceneRow({
+  scene,
+  devices,
+  onChanged,
+}: {
+  scene: Scene;
+  devices: Device[];
+  onChanged: () => void;
+}) {
+  const [editing, setEditing] = React.useState(false);
+
   const activate = useMutation({
     mutationFn: () => api.activateScene(scene.id),
     onSuccess: () => toast.success(`Cena "${scene.name}" ativada`),
@@ -281,27 +378,53 @@ function SceneRow({ scene, onChanged }: { scene: Scene; onChanged: () => void })
     onError: (e) => toast.error(e.message),
   });
 
+  if (editing) {
+    return (
+      <div className="sm:col-span-2">
+        <SceneForm
+          devices={devices}
+          initial={scene}
+          onDone={() => {
+            setEditing(false);
+            onChanged();
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      </div>
+    );
+  }
+
+  const [, label] = splitEmoji(scene.name);
+
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 py-4">
+    <Card className="transition-colors hover:border-foreground/15">
+      <CardContent className="flex items-center gap-3 p-4">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-secondary">
+          <BrIcon c={brIconFor(scene.name)} className="text-2xl" />
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{scene.name}</p>
+          <p className="truncate font-medium tracking-tight">{label}</p>
           <p className="text-xs text-muted-foreground">
             {scene.actions.length} {scene.actions.length === 1 ? 'ação' : 'ações'}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => activate.mutate()}
-          disabled={activate.isPending}
-        >
+        <Button variant="ghost" size="sm" onClick={() => activate.mutate()} disabled={activate.isPending}>
           <Play className="mr-1 h-4 w-4 text-chart-2" />
           Ativar
         </Button>
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon"
+          className="h-9 w-9 text-muted-foreground hover:text-foreground"
+          aria-label="Editar cena"
+          onClick={() => setEditing(true)}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 text-muted-foreground hover:text-foreground"
           aria-label="Remover cena"
           onClick={() => {
             if (window.confirm(`Remover "${scene.name}"?`)) remove.mutate();
@@ -316,21 +439,6 @@ function SceneRow({ scene, onChanged }: { scene: Scene; onChanged: () => void })
 
 function NewSceneForm({ devices, onCreated }: { devices: Device[]; onCreated: () => void }) {
   const [open, setOpen] = React.useState(false);
-  const [name, setName] = React.useState('');
-  const [actions, setActions] = React.useState<DraftAction[]>([]);
-
-  const create = useMutation({
-    mutationFn: () => api.createScene({ name, actions: actions.map(toApiAction) }),
-    onSuccess: () => {
-      toast.success(`Cena "${name}" criada 🎉`);
-      setName('');
-      setActions([]);
-      setOpen(false);
-      onCreated();
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
   if (!open) {
     return (
       <Button variant="outline" className="mb-4" onClick={() => setOpen(true)}>
@@ -339,11 +447,52 @@ function NewSceneForm({ devices, onCreated }: { devices: Device[]; onCreated: ()
       </Button>
     );
   }
+  return (
+    <SceneForm
+      devices={devices}
+      onDone={() => {
+        setOpen(false);
+        onCreated();
+      }}
+      onCancel={() => setOpen(false)}
+    />
+  );
+}
+
+/** Formulário de cena — cria (sem `initial`) ou edita (com `initial`). */
+function SceneForm({
+  devices,
+  initial,
+  onDone,
+  onCancel,
+}: {
+  devices: Device[];
+  initial?: Scene;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const editing = !!initial;
+  const [name, setName] = React.useState(initial?.name ?? '');
+  const [actions, setActions] = React.useState<DraftAction[]>(
+    initial ? initial.actions.map(fromApiAction) : [],
+  );
+
+  const save = useMutation({
+    mutationFn: () => {
+      const payload = { name, actions: actions.map(toApiAction) };
+      return editing ? api.updateScene(initial.id, payload) : api.createScene(payload);
+    },
+    onSuccess: () => {
+      toast.success(editing ? `Cena "${name}" atualizada` : `Cena "${name}" criada 🎉`);
+      onDone();
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   return (
     <Card className="mb-4">
       <CardHeader>
-        <CardTitle>Nova cena</CardTitle>
+        <CardTitle>{editing ? 'Editar cena' : 'Nova cena'}</CardTitle>
       </CardHeader>
       <CardContent>
         <form
@@ -353,7 +502,7 @@ function NewSceneForm({ devices, onCreated }: { devices: Device[]; onCreated: ()
               toast.error('Adicione pelo menos uma ação');
               return;
             }
-            create.mutate();
+            save.mutate();
           }}
           className="flex flex-col gap-4"
         >
@@ -368,10 +517,10 @@ function NewSceneForm({ devices, onCreated }: { devices: Device[]; onCreated: ()
           </label>
           <ActionBuilder devices={devices} actions={actions} setActions={setActions} />
           <div className="flex gap-2">
-            <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? 'Criando…' : 'Criar cena'}
+            <Button type="submit" disabled={save.isPending}>
+              {save.isPending ? 'Salvando…' : editing ? 'Salvar alterações' : 'Criar cena'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" onClick={onCancel}>
               Cancelar
             </Button>
           </div>
@@ -383,11 +532,24 @@ function NewSceneForm({ devices, onCreated }: { devices: Device[]; onCreated: ()
 
 /* ───────────────────────── Construtor de ações ───────────────────────── */
 
+function fromApiAction(a: AutomationAction): DraftAction {
+  return {
+    deviceId: a.deviceId,
+    command: a.command,
+    brightness: a.brightness ?? 80,
+    delaySeconds: a.delaySeconds ?? 0,
+    color: a.color,
+    colorTemp: a.colorTemp,
+  };
+}
+
 function toApiAction(a: DraftAction): AutomationAction {
   return {
     deviceId: a.deviceId,
     command: a.command,
     ...(a.command === 'setBrightness' ? { brightness: a.brightness } : {}),
+    ...(a.command === 'setColor' && a.color ? { color: a.color } : {}),
+    ...(a.command === 'setColorTemp' && a.colorTemp ? { colorTemp: a.colorTemp } : {}),
     ...(a.delaySeconds > 0 ? { delaySeconds: a.delaySeconds } : {}),
   };
 }
@@ -422,71 +584,80 @@ function ActionBuilder({
     <div>
       <span className="mb-1.5 block text-xs text-muted-foreground">Ações (em ordem)</span>
       <div className="flex flex-col gap-2">
-        {actions.map((a, i) => (
-          <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border p-2">
-            <span className="text-xs text-muted-foreground">{i + 1}.</span>
-            <select
-              className={`${selectCls} min-w-0 flex-1`}
-              value={a.deviceId}
-              onChange={(e) => patch(i, { deviceId: e.target.value })}
-              aria-label="Dispositivo"
-            >
-              {devices.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-            <select
-              className={selectCls}
-              value={a.command}
-              onChange={(e) => patch(i, { command: e.target.value })}
-              aria-label="Comando"
-            >
-              {Object.entries(COMMAND_LABEL).map(([cmd, label]) => (
-                <option key={cmd} value={cmd}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            {a.command === 'setBrightness' && (
+        {actions.map((a, i) => {
+          const knownDevice = devices.some((d) => d.id === a.deviceId);
+          const knownCommand = Boolean(COMMAND_LABEL[a.command]);
+          return (
+            <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg border p-2">
+              <span className="text-xs text-muted-foreground">{i + 1}.</span>
+              <select
+                className={`${selectCls} min-w-0 flex-1`}
+                value={a.deviceId}
+                onChange={(e) => patch(i, { deviceId: e.target.value })}
+                aria-label="Dispositivo"
+              >
+                {!knownDevice && a.deviceId && (
+                  <option value={a.deviceId}>Dispositivo removido</option>
+                )}
+                {devices.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={selectCls}
+                value={a.command}
+                onChange={(e) => patch(i, { command: e.target.value })}
+                aria-label="Comando"
+              >
+                {!knownCommand && <option value={a.command}>{a.command}</option>}
+                {Object.entries(COMMAND_LABEL).map(([cmd, label]) => (
+                  <option key={cmd} value={cmd}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              {a.command === 'setBrightness' && (
+                <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={a.brightness}
+                    onChange={(e) => patch(i, { brightness: Number(e.target.value) })}
+                    className="h-9 w-16"
+                    aria-label="Brilho"
+                  />
+                  %
+                </label>
+              )}
               <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                após
                 <Input
                   type="number"
                   min={0}
-                  max={100}
-                  value={a.brightness}
-                  onChange={(e) => patch(i, { brightness: Number(e.target.value) })}
-                  className="h-9 w-16"
-                  aria-label="Brilho"
+                  max={3600}
+                  value={a.delaySeconds}
+                  onChange={(e) => patch(i, { delaySeconds: Number(e.target.value) })}
+                  className="h-9 w-20"
+                  aria-label="Atraso em segundos"
                 />
-                %
+                s
               </label>
-            )}
-            <label className="flex items-center gap-1 text-xs text-muted-foreground">
-              após
-              <Input
-                type="number"
-                min={0}
-                max={3600}
-                value={a.delaySeconds}
-                onChange={(e) => patch(i, { delaySeconds: Number(e.target.value) })}
-                className="h-9 w-20"
-                aria-label="Atraso em segundos"
-              />
-              s
-            </label>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label="Remover ação"
-              onClick={() => setActions((arr) => arr.filter((_, j) => j !== i))}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                aria-label="Remover ação"
+                onClick={() => setActions((arr) => arr.filter((_, j) => j !== i))}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        })}
       </div>
       <Button type="button" variant="outline" size="sm" className="mt-2" onClick={add}>
         <Plus className="mr-1 h-4 w-4" />

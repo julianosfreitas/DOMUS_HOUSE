@@ -1,0 +1,31 @@
+%======================= RESUMO =======================
+\newpage
+\begin{center}\textbf{RESUMO}\end{center}
+\addcontentsline{toc}{section}{RESUMO}
+\vspace{0.4cm}
+
+\noindent
+No Brasil, o hardware de automação residencial já é barato --- lâmpadas e tomadas
+Wi-Fi genéricas do ecossistema Tuya custam entre R\$~30 e R\$~60 ---, mas transformar
+esse hardware em automação utilizável permanece inacessível ao domicílio típico por
+três barreiras encadeadas: o custo de \textit{comissionamento} (aplicativos
+proprietários, contas em nuvem e portais de desenvolvedor em inglês), a dependência
+estrutural de nuvem e os riscos de privacidade. Este trabalho apresenta o DOMUS, uma
+prova de conceito de \textit{hub} de automação residencial \textit{local-first},
+controlável por voz em português brasileiro processada no próprio \textit{hub}, cuja
+tese é que a democratização depende menos do preço do hardware e mais da redução da
+barreira de comissionamento (``nuvem uma vez, local para sempre''). O sistema foi
+construído com Node.js/NestJS e o padrão \textit{Adapter} para isolar a fragmentação
+de protocolos, com reconhecimento de fala por \textit{Whisper} executado no
+\textit{hub}. Como resultados, validou-se o controle local do dispositivo TP-Link
+Tapo~P110 pelo protocolo KLAP (latências de 201--332~ms) e o \textit{pipeline} de voz
+com acurácia de intenção de 87,7\%; custo total, taxa de erro de palavra (WER) e
+usabilidade (SUS) são reportados no Capítulo~\ref{cap:resultados}. Conclui-se pela
+viabilidade técnica do controle local por voz em português sem dependência permanente
+de nuvem; a validação plena da barreira de comissionamento para dispositivos Tuya
+permanece como trabalho em andamento.
+
+\vspace{0.5cm}
+\noindent\textbf{Palavras-chave:} automação residencial; \textit{local-first};
+comissionamento; reconhecimento de voz; privacidade; \textit{Internet of Things}.
+\newpage

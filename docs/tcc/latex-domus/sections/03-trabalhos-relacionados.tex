@@ -1,0 +1,160 @@
+%=========================================================
+% CAPÍTULO 3 — TRABALHOS RELACIONADOS
+% Incluído via \input em main.tex. NÃO reabrir preâmbulo.
+%=========================================================
+\section{Trabalhos relacionados}\label{cap:relacionados}
+
+O problema de automação residencial de baixo custo não é novo, e existe um
+ecossistema maduro de plataformas que se propõem a controlar dispositivos
+heterogêneos a partir de uma interface única. Para posicionar corretamente a
+contribuição do DOMUS, é preciso separar duas operações que a literatura de
+mercado costuma tratar como uma só: o \textit{controle} (o dispositivo já está na
+rede Wi-Fi e recebe comandos de liga/desliga, brilho ou leitura de estado) e o
+\textit{comissionamento} (\textit{commissioning}) --- levar um dispositivo de
+fábrica para dentro da rede Wi-Fi e obter uma credencial de controle, idealmente
+\textbf{sem} o aplicativo do fabricante. As plataformas discutidas a seguir são
+fortes na primeira operação e, em regra, terceirizam a segunda para o app
+proprietário. É exatamente nessa fronteira que o DOMUS se insere.
+
+\subsection{Home Assistant}\label{sec:home-assistant}
+
+O Home Assistant (HOME ASSISTANT, 2025) é a referência de código aberto para
+controle local: sua arquitetura de \textit{integrations} isola cada protocolo
+atrás de uma interface comum, com um \textit{config flow} declarativo, e sua
+\textit{WebSocket API} oferece um canal de tempo real maduro (\texttt{subscribe\_events},
+\texttt{call\_service}, \texttt{get\_states}). Esse desenho valida, como \textit{prior
+art}, o \textit{adapter pattern} adotado pelo DOMUS e o canal Socket.IO do seu PWA.
+
+A limitação decisiva, porém, aparece no comissionamento. Para o hardware-alvo
+deste trabalho --- lâmpada Tuya/Intelbras EWS 410 e tomada TP-Link Tapo P110 ---
+as próprias integrações oficiais do Home Assistant \textbf{pressupõem o aplicativo
+do fabricante}. A integração Tuya exige que o dispositivo já tenha sido adicionado
+à conta na nuvem por meio do app Smart Life/Tuya Smart antes de qualquer
+recarga no hub; a integração TP-Link trata o provisionamento Wi-Fi como
+pré-requisito externo, feito no app Kasa/Tapo ou por uma ferramenta de linha de
+comando documentada como instável para os modelos Tapo recentes. Os caminhos em
+que o Home Assistant de fato comissiona de forma nativa --- Matter e Improv via
+BLE --- são \textit{gated} por firmware e por padrões abertos que nem a EWS 410 nem
+a Tapo P110 implementam. O gap ``dispositivo de fábrica $\rightarrow$ Wi-Fi $+$
+credencial local'' permanece, portanto, aberto.
+
+Disso decorre a decisão de arquitetura registrada no projeto (ADR-001): adotar o
+Home Assistant como \textbf{núcleo} de execução inverteria a tese --- ele passaria
+a ser a contribuição, e o DOMUS, uma casca de interface --- e, ainda assim,
+\textbf{não} resolveria o problema-alvo, porque o comissionamento continuaria
+delegado ao app do fabricante. O DOMUS toma emprestado do Home Assistant o modelo
+de \textit{adapter}/integração e o design de API em tempo real, mas mantém seu
+próprio hub como núcleo; o Home Assistant, se integrado no futuro, entraria como
+\emph{uma fonte a mais} sob o \textit{adapter pattern} do DOMUS, de forma coerente
+com o padrão, e nunca como orquestrador de \textit{runtime}.
+
+\subsection{OpenHAB}\label{sec:openhab}
+
+O OpenHAB, plataforma de automação em Java com motor de regras e execução local,
+compartilha a filosofia \textit{local-first} do Home Assistant e reforça o mesmo
+diagnóstico: seus \textit{bindings} cobrem amplamente o \textbf{controle} de
+dispositivos já pareados, mas o comissionamento de hardware Wi-Fi proprietário
+continua dependente do app do fabricante ou de credenciais obtidas na nuvem do
+fornecedor. Sua curva de configuração --- arquivos de \textit{items}, \textit{things}
+e \textit{sitemaps} --- também eleva a barreira técnica para o usuário leigo, o
+público que o DOMUS pretende atender.
+% "..." Se desejar citação formal do OpenHAB, acrescentar a entrada correspondente
+% em sections/referencias.tex (fora do conjunto canônico atual) e referenciá-la aqui.
+
+\subsection{Ecossistemas comerciais (Amazon Alexa e Google Home)}\label{sec:comerciais}
+
+Os assistentes comerciais --- Amazon Alexa e Google Home/Assistant --- entregam a
+melhor experiência de comissionamento guiado e reconhecimento de voz em português
+do mercado, e sustentam a maior fatia de adoção de dispositivos de casa inteligente
+(IDC, 2024; STATISTA, 2023), inclusive no cenário brasileiro em expansão
+(IMARC, 2025). Essa conveniência, porém, tem dois custos estruturais que colidem
+com os princípios deste trabalho. O primeiro é a \textbf{dependência de nuvem}: o
+reconhecimento de fala e boa parte da lógica de automação rodam em servidores do
+fornecedor, de modo que a queda da internet degrada ou inutiliza o controle, e o
+áudio doméstico trafega para fora da residência --- tensão direta com a
+minimização de dados prevista na LGPD (BRASIL, 2018). O segundo é o
+\textbf{aprisionamento} (\textit{vendor lock-in}): dispositivos, rotinas e a
+própria conta ficam atados a um ecossistema proprietário, contrariando o princípio
+\textit{local-first}, no qual o usuário mantém a posse e o controle dos próprios
+dados a despeito da nuvem (KLEPPMANN et al., 2019). O DOMUS busca a mesma
+conveniência de voz \textbf{sem} exportar o áudio nem a lógica de decisão: o
+reconhecimento de fala ocorre no próprio hub, com o modelo Whisper
+(RADFORD et al., 2022), e não no celular nem na nuvem.
+
+\subsection{Matter}\label{sec:matter}
+
+O padrão Matter (CONNECTIVITY STANDARDS ALLIANCE, 2024) é a resposta da indústria
+ao problema de interoperabilidade e comissionamento: define um provisionamento
+unificado, via BLE e código QR, entre fabricantes distintos. É, conceitualmente, a
+solução mais elegante para o gap aqui discutido. Na prática, contudo, ainda é uma
+padronização \textbf{cara e de adoção incipiente} para o público-alvo: exige
+hardware certificado, frequentemente um \textit{Thread Border Router} adicional, e
+não abrange o parque de dispositivos Wi-Fi de baixo custo já em circulação. O
+hardware efetivamente adquirido para este trabalho é ilustrativo: nem a lâmpada
+Tuya/Intelbras EWS 410 (TUYA, 2025) nem a tomada TP-Link Tapo P110 (TP-LINK, 2024)
+implementam Matter, de modo que nenhum caminho de comissionamento padronizado as
+alcança. Matter aponta o futuro desejável da interoperabilidade, mas não resolve o
+presente de baixo custo que o DOMUS tem por alvo.
+
+\subsection{Posicionamento do DOMUS}\label{sec:posicionamento}
+
+À luz do exposto, a contribuição do DOMUS não é ``mais uma plataforma de
+controle'': é o \textbf{comissionamento acessível e local} de dispositivos Wi-Fi
+de fábrica, combinado a \textbf{voz em português brasileiro processada no próprio
+hub}, sem dependência permanente de nuvem e a custo compatível com a realidade
+brasileira. Nenhuma das soluções analisadas ocupa simultaneamente esses quatro
+pontos: o Home Assistant e o OpenHAB são locais mas delegam o comissionamento; os
+ecossistemas comerciais oferecem voz e comissionamento guiado mas dependem da
+nuvem e aprisionam o usuário; o Matter padroniza mas exige hardware que o
+público-alvo não possui. A Tabela~\ref{tab:comparativo} sintetiza esse contraste.
+
+\begin{table}[H]
+\centering
+\caption{Comparativo entre soluções de automação residencial e o DOMUS.}
+\label{tab:comparativo}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Solução} & \textbf{Controle} & \textbf{Comission.} & \textbf{Voz pt-BR} & \textbf{Baixo} \\
+                 & \textbf{local}    & \textbf{sem app/portal} & \textbf{local} & \textbf{custo} \\
+\midrule
+Home Assistant          & Sim     & Não     & Parcial\textsuperscript{a} & Parcial \\
+OpenHAB                 & Sim     & Não     & Parcial\textsuperscript{a} & Parcial \\
+Alexa / Google Home     & Não     & Parcial\textsuperscript{b} & Não\textsuperscript{c} & Parcial \\
+Matter                  & Sim     & Sim     & N/A\textsuperscript{d}     & Não \\
+\textbf{DOMUS}          & \textbf{Sim} & \textbf{Sim}\textsuperscript{e} & \textbf{Sim} & \textbf{Sim}\textsuperscript{f} \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3em}
+{\footnotesize
+\begin{flushleft}
+\textsuperscript{a} Requer \textit{add-ons} ou STT externo/nuvem para voz.
+\textsuperscript{b} Comissionamento guiado, porém atrelado a conta na nuvem.
+\textsuperscript{c} Voz em pt-BR existe, mas é processada na nuvem, não localmente.
+\textsuperscript{d} Depende do controlador Matter adotado.
+\textsuperscript{e} Objetivo central do trabalho, em validação empírica (ver abaixo).
+\textsuperscript{f} Meta $<$ R\$~200 em hardware; BOM detalhado \textit{a coletar}.
+\end{flushleft}}
+\end{table}
+
+Cabe registrar, com honestidade metodológica, o estágio de validação de cada
+frente do DOMUS. No \textbf{controle local}, os resultados já são positivos: a
+tomada Tapo P110, acionada localmente pelo protocolo KLAP, respondeu com latências
+entre 201 e 332~ms, sem passar pela nuvem TP-Link. Na \textbf{voz}, a interpretação
+de intenção atingiu 87,7\% de acurácia sobre 138 comandos reais em português,
+com latência mediana (p50) de 463~ms e p95 de 2140~ms; o sucesso de
+\textbf{execução} ficou em 66,7\%, dominado por falhas de \textit{hardware offline}
+--- e não pelo analisador de comandos ---, com um \textit{outlier} máximo de 12,3~s
+correspondente a \textit{timeout} de dispositivo. Registraram-se ainda alucinações
+pontuais do Whisper (por exemplo, a transcrição espúria ``[Som de futebol]''),
+comportamento conhecido do modelo em trechos de baixa energia acústica.
+
+No \textbf{comissionamento}, a evidência é, por ora, a da própria barreira: o
+pareamento da lâmpada Tuya EWS 410 sem o app SmartLife encontra-se
+\textbf{bloqueado} e segue em validação --- resultado que, longe de enfraquecer a
+tese, confirma empiricamente que o gap atacado é real e não trivialmente
+solucionável pelas plataformas existentes. As métricas de qualidade de transcrição
+(WER), usabilidade (SUS) e custo consolidado de materiais (BOM) permanecem
+\textit{a coletar} [...] e serão reportadas no Capítulo de resultados.
+% "..." Inserir, quando disponíveis: WER da transcrição, escore SUS do estudo de
+% usabilidade e a lista de materiais (BOM) com o custo total do hardware.

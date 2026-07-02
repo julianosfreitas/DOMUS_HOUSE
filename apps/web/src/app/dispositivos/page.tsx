@@ -44,7 +44,7 @@ export default function DevicesPage() {
   return (
     <AppShell title="Dispositivos" subtitle="Seus aparelhos conectados">
       <div className="mb-4 flex justify-end">
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/dispositivos/add">
             <Plus className="mr-1 h-4 w-4" />
             Adicionar dispositivo
@@ -68,10 +68,19 @@ export default function DevicesPage() {
         )}
 
         {!!devices.data?.length && (
-          <p className="text-xs text-muted-foreground">
-            Cinza = ainda não testado · Verde = respondeu (online) · Vermelho = não respondeu
-            (offline). Use &quot;Testar conexão&quot; para verificar — não liga nem desliga o
-            aparelho.
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-muted-foreground" />não testado
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-chart-2" />online
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-destructive" />offline
+            </span>
+            <span className="text-muted-foreground/80">
+              · &quot;Testar&quot; verifica a conexão (não liga o aparelho)
+            </span>
           </p>
         )}
 

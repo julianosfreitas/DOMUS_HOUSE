@@ -1,0 +1,309 @@
+%========================================================
+% CAPÍTULO 6 — RESULTADOS E DISCUSSÃO
+% Incluído via \input em main.tex. NÃO adicionar preâmbulo.
+% Separar sempre resultado CONFIRMADO (medido e sincronizado) de [a coletar].
+%========================================================
+\section{Resultados e discussão}\label{cap:resultados}
+
+Este capítulo confronta os critérios de sucesso fixados na Seção~\ref{sec:avaliacao}
+com o que foi efetivamente medido no protótipo DOMUS. Adota-se, por rigor, uma
+distinção explícita entre \textit{resultados confirmados} --- obtidos por medição
+instrumentada e verificados em hardware ou no banco de dados do \textit{hub} --- e
+métricas \textit{em coleta}, cujo procedimento está definido, porém cuja aquisição
+ainda estava em andamento no fechamento desta versão. O Quadro~\ref{tab:panorama}
+resume esse estado. A opção por declarar o que ainda não foi medido, em vez de
+preencher lacunas com estimativas, é coerente com a postura de honestidade documental
+assumida no trabalho e evita que a discussão confunda promessa de projeto com
+evidência empírica.
+
+\begin{table}[H]
+\centering
+\caption{Panorama dos critérios de avaliação e seu estado de coleta.}
+\label{tab:panorama}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Critério} & \textbf{Instrumento} & \textbf{Estado} \\
+\midrule
+Controle local de hardware   & Latência KLAP (Tapo P110)        & Confirmado \\
+Acurácia de intenção de voz  & \textit{Log} \texttt{voice\_commands} & Confirmado \\
+Sucesso de execução de voz   & \textit{Log} \texttt{voice\_commands} & Confirmado \\
+Latência voz$\rightarrow$ação & Percentis p50/p95                & Confirmado \\
+Taxa de erro de palavra (WER) & Corpus controlado                & A coletar  \\
+Custo total (BOM)            & Planilha datada, 2 cenários      & A coletar  \\
+Usabilidade (SUS)            & Questionário, $n=3$--$5$         & A coletar  \\
+Economia de energia          & Série antes/depois com carga     & A coletar  \\
+Comissionamento sem \textit{app} & Tapo (pleno) / EWS 410 (bloqueado) & Confirmado \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Controle local de hardware}\label{sec:res-controle}
+
+O critério mais elementar da tese --- controlar hardware de prateleira sem trânsito
+obrigatório pela nuvem do fabricante --- foi \textbf{confirmado} para a tomada
+inteligente TP-Link Tapo~P110. O adaptador correspondente estabelece a sessão
+diretamente na rede local pelo protocolo proprietário KLAP (\textit{Key Local
+Authentication Protocol}), negociando o \textit{handshake} de autenticação a partir de
+credenciais de consumidor, sem recorrer aos servidores da TP-Link em regime permanente
+(TP-LINK, 2024). Trata-se da materialização operacional do princípio \textit{local-first}
+descrito por Kleppmann et~al.\ (2019): o plano de controle reside na instalação local.
+
+As latências fim-a-fim das operações de comando, medidas na rede local do laboratório,
+situaram-se na faixa de \textbf{201 a 332~ms} (Tabela~\ref{tab:latencia-tapo}). Esse
+intervalo é imperceptível como atraso de interação para o usuário e comparável ao de
+comandos que trafegariam pela nuvem em condição de rede favorável, com a vantagem de
+não depender da conectividade externa --- justamente o gargalo estrutural identificado
+na justificativa do trabalho, dado que apenas 22\% dos domicílios brasileiros dispõem
+de conectividade satisfatória (CETIC.br, 2024).
+
+\begin{table}[H]
+\centering
+\caption{Latências de controle local do Tapo P110 pelo protocolo KLAP (rede local).}
+\label{tab:latencia-tapo}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Estatística} & \textbf{Latência (ms)} & \textbf{Observação} \\
+\midrule
+Menor latência observada  & 201   & Comando após sessão estabelecida \\
+Maior latência observada  & 332   & Inclui renegociação de \textit{handshake} \\
+Mediana (p50)             & [...] & A confirmar no \textit{log} \\
+Amostras ($n$)            & [...] & A confirmar no \textit{log} \\
+\bottomrule
+\end{tabular}
+\end{table}
+% NOTA: a faixa 201–332 ms está CONFIRMADA. Preencher p50, n e, se possível, quebra por
+% operação (ligar / desligar / leitura de energia) a partir dos tempos registrados nos
+% adaptadores. Se houver série suficiente, considerar figura fig_latencia_tapo.pdf.
+
+\subsection{Reconhecimento de voz}\label{sec:res-voz}
+
+O \textit{pipeline} de voz foi avaliado sobre \textbf{138 comandos reais} registrados na
+tabela \texttt{voice\_commands} durante o uso do protótipo, o que caracteriza uma
+coleta em uso, e não em laboratório controlado. A Tabela~\ref{tab:voz} consolida as
+métricas confirmadas. É central, para a leitura correta dos números, separar quatro
+grandezas que a literatura e o senso comum tendem a fundir: a acurácia de reconhecimento
+da fala (WER), a acurácia de \textit{intenção}, o sucesso de \textit{execução} e a
+latência.
+
+A \textbf{acurácia de intenção} --- fração dos comandos em que o \textit{parser}
+extraiu corretamente a ação pretendida e seu alvo --- foi de \textbf{87,7\%}. O
+resultado indica que o interpretador de linguagem natural em pt-BR desempenha o seu
+papel de forma robusta mesmo sobre transcrições ruidosas. Já o \textbf{sucesso de
+execução} --- fração dos comandos que resultaram na mudança de estado física
+pretendida --- foi de apenas \textbf{66,7\%}. A diferença de mais de vinte pontos
+percentuais entre as duas métricas \emph{não} decorre de falha do \textit{parser}: ela
+é \textbf{dominada por hardware indisponível} no momento do comando (dispositivo
+\textit{offline}, tomada sem energia, alvo fora da rede). Em outras palavras, o sistema
+compreendeu a intenção, mas não pôde efetivá-la porque o dispositivo-alvo não estava
+acessível --- uma falha de disponibilidade de hardware, não de reconhecimento. Essa
+decomposição é a resposta direta à objeção previsível da banca de que ``a execução
+ficou abaixo de dois terços'': o número mede a confiabilidade do parque físico
+disponível durante a coleta, não a qualidade do interpretador.
+
+\begin{table}[H]
+\centering
+\caption{Métricas confirmadas do \textit{pipeline} de voz ($n=138$ comandos reais).}
+\label{tab:voz}
+\begin{tabular}{@{}lcl@{}}
+\toprule
+\textbf{Métrica} & \textbf{Valor} & \textbf{Observação} \\
+\midrule
+Comandos instrumentados ($n$) & 138      & Tabela \texttt{voice\_commands} \\
+Acurácia de intenção          & 87,7\%   & Intenção + alvo corretos \\
+Sucesso de execução           & 66,7\%   & Limitado por hardware \textit{offline} \\
+Latência p50                  & 463~ms   & Voz $\rightarrow$ ação \\
+Latência p95                  & 2.140~ms & Cauda superior \\
+Latência máxima (\textit{outlier}) & 12,3~s & \textit{Timeout} de hardware \\
+WER (taxa de erro de palavra) & [...]    & A coletar (corpus controlado) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Quanto à \textbf{latência voz$\rightarrow$ação}, a mediana (p50) de \textbf{463~ms}
+confirma uma resposta perceptualmente imediata no caso típico. O percentil~95 de
+\textbf{2.140~ms} revela uma cauda superior mais lenta, apenas ligeiramente acima do
+patamar informal de dois segundos e explicável pelo custo de transcrição do
+\textit{Whisper} no \textit{hub} somado ao tempo de resposta do dispositivo. O
+\textbf{\textit{outlier} máximo de 12,3~s} não representa lentidão do reconhecimento:
+corresponde a um \textbf{\textit{timeout} de hardware}, em que o adaptador aguardou até
+o limite a resposta de um dispositivo que não respondeu --- mais uma manifestação do
+mesmo gargalo de disponibilidade física discutido acima. Reportar a latência por
+percentis, e não por média, é deliberado: a média seria contaminada por esses eventos
+de \textit{timeout} e mascararia o comportamento real percebido pela maioria dos
+comandos.
+
+Um achado qualitativo merece registro por seu valor probatório espontâneo. Em pelo
+menos um enunciado, o \textit{Whisper} produziu a transcrição alucinada
+\texttt{"[Som de futebol]"} para um segmento sem fala inteligível. Longe de ser um
+constrangimento a ocultar, o episódio é \textbf{evidência empírica de uma limitação
+conhecida} do reconhecimento de fala de vocabulário aberto em larga escala: modelos do
+tipo \textit{Whisper} tendem a ``alucinar'' rótulos plausíveis em trechos de silêncio
+ou ruído (RADFORD et~al., 2022). O fato de a alucinação ter emergido no uso real, e não
+em um teste adversarial construído, reforça a fidelidade da coleta e alimenta
+diretamente a discussão de limitações e de robustez da demonstração (Seção~\ref{sec:res-comissionamento}
+e Capítulo~\ref{cap:consideracoes}).
+
+A \textbf{taxa de erro de palavra (WER)} permanece \textbf{a coletar}. Diferentemente
+das métricas acima, ela exige um corpus controlado --- protocolo previsto de, no mínimo,
+50 enunciados com pelo menos três falantes distintos e transcrição de referência ---,
+acompanhado de uma matriz de confusão de intenções. Sem esse corpus, seria incorreto
+reportar WER a partir dos 138 comandos de uso, que não possuem \textit{ground truth}
+textual.
+% INSERIR (semana de métricas): WER global e por falante + matriz de confusão de
+% intenções. Considerar figura fig_matriz_confusao.pdf.
+
+\subsection{Custo (BOM)}\label{sec:res-custo}
+
+O custo total de materiais (\textit{Bill of Materials}, BOM) é a métrica que sustenta
+diretamente a alegação de ``baixo custo'' do título. Seu levantamento definitivo está
+\textbf{a coletar}: exige uma planilha única e datada, com preços de varejo referenciados
+(notas fiscais ou \textit{links}), estruturada em \textbf{dois cenários} que enfrentam
+explicitamente a questão do \textit{hub} --- o item que a narrativa ingênua de custo
+tende a esconder. A Tabela~\ref{tab:bom} apresenta o esqueleto a ser preenchido.
+
+\begin{table}[H]
+\centering
+\caption{Custo de materiais (BOM) do DOMUS em dois cenários --- valores a coletar.}
+\label{tab:bom}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Item} & \textbf{Incremental (R\$)} & \textbf{Completo (R\$)} \\
+\midrule
+TP-Link Tapo P110 (tomada)          & [...] & [...] \\
+Intelbras EWS 410 (lâmpada)         & [...] & [...] \\
+\textit{Hub} de processamento       & 0\,\textsuperscript{a} & [...]\,\textsuperscript{b} \\
+Outros (cabos, fonte)               & [...] & [...] \\
+\midrule
+\textbf{Total}                      & \textbf{[...]} & \textbf{[...]} \\
+\bottomrule
+\end{tabular}
+
+{\footnotesize\noindent\textsuperscript{a}~PC/notebook doméstico reaproveitado como
+\textit{hub} (custo marginal zero). \quad
+\textsuperscript{b}~Mini-PC ou Raspberry~Pi dedicado.\par}
+\end{table}
+% INSERIR os valores datados; discutir a meta informal de R$ 200 de custo INCREMENTAL,
+% e o fato de que a divergência histórica (R$ 130 vs R$ 180 na documentação) se resolve
+% justamente por explicitar se o hub entra ou não na conta.
+
+A discussão central desta subseção, portanto, não é o preço da lâmpada ou da tomada
+--- baratos e já premissa do trabalho ---, mas o \textbf{custo do \textit{hub}}. No
+cenário \textit{incremental}, em que um computador doméstico ocioso é reaproveitado, o
+custo marginal do \textit{hub} tende a zero e a meta de custo total incremental
+inferior a R\$~200 é plausível. No cenário \textit{completo}, com um mini-PC ou
+Raspberry~Pi dedicado, esse custo precisa ser contabilizado com honestidade, sob pena
+de a alegação de democratização escamotear o seu principal item de despesa.
+
+\subsection{Usabilidade (SUS)}\label{sec:res-sus}
+
+A avaliação de usabilidade pela \textit{System Usability Scale} (SUS) está \textbf{a
+coletar}. O protocolo previsto aplica o questionário SUS padrão a uma amostra de
+$n = 3$ a $5$ participantes, após um roteiro de cinco tarefas representativas
+(comissionar um dispositivo, emitir um comando de voz, criar uma automação por horário,
+consultar o painel de energia e recuperar-se de uma falha simulada). A
+Tabela~\ref{tab:sus} apresenta a estrutura de reporte.
+
+\begin{table}[H]
+\centering
+\caption{Resultado da avaliação de usabilidade (SUS) --- a coletar.}
+\label{tab:sus}
+\begin{tabular}{@{}lc@{}}
+\toprule
+\textbf{Item} & \textbf{Valor} \\
+\midrule
+Participantes ($n$)          & [...] \\
+Pontuação SUS média          & [...] \\
+Desvio-padrão                & [...] \\
+Faixa (mín.\ --- máx.)       & [...] \\
+Interpretação qualitativa    & [...] \\
+\bottomrule
+\end{tabular}
+\end{table}
+% INSERIR: SUS por participante + média. Score >= 68 é a média de referência da escala;
+% discutir com cautela dado o n pequeno. Reconhecer explicitamente que n=3–5 sustenta
+% um argumento DIRECIONAL de usabilidade, não uma generalização — resposta preparada
+% para a objeção de "democratização com n=1".
+
+Reconhece-se, desde já, que uma amostra dessa magnitude não autoriza generalização
+estatística. O propósito da medição é \textbf{direcional}: verificar se usuários sem
+formação técnica conseguem completar as tarefas essenciais e identificar barreiras
+grosseiras de usabilidade, alimentando a discussão de democratização em sua forma
+prudente. Sem coleta de SUS, a defesa deve recuar para o título alternativo mais
+conservador, centrado em viabilidade técnica.
+
+\subsection{Energia}\label{sec:res-energia}
+
+O painel de energia foi implementado e alimentado pela telemetria do Tapo~P110, com um
+volume expressivo de leituras acumuladas no banco. Contudo, a avaliação de
+\textbf{economia de energia} propriamente dita está \textbf{a coletar}, por uma razão
+metodológica honesta: as leituras acumuladas foram obtidas com a tomada sem carga útil
+acoplada (potência residual da ordem de fração de \textit{watt}), o que torna a série
+inadequada para demonstrar economia real. A avaliação válida requer uma \textbf{série
+temporal antes/depois com carga real} (por exemplo, um ventilador ou abajur submetido a
+uma rotina de desligamento programado), coletada por um período mínimo de vários dias
+consecutivos. A Tabela~\ref{tab:energia} apresenta a estrutura de reporte.
+
+\begin{table}[H]
+\centering
+\caption{Consumo antes/depois da automação, com carga real --- a coletar.}
+\label{tab:energia}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Condição} & \textbf{Período} & \textbf{Consumo (kWh)} & \textbf{Custo (R\$)} \\
+\midrule
+Antes (sem automação) & [...] & [...] & [...] \\
+Depois (com automação) & [...] & [...] & [...] \\
+\midrule
+\textbf{Economia}     & --- & \textbf{[...]} & \textbf{[...]} \\
+\bottomrule
+\end{tabular}
+\end{table}
+% INSERIR: série >= 5–7 dias com carga real; tarifa em R$/kWh referenciada (não
+% hardcoded). Se a série não for viável a tempo, REBAIXAR explicitamente para "painel
+% demonstrado; economia não avaliada" nas limitações (§7.1), sem inflar o resultado.
+
+Enquanto a série com carga não estiver disponível, o resultado honesto é: o
+\emph{painel} de monitoramento de energia está \textbf{demonstrado e funcional}, porém a
+\emph{economia} proporcionada pela automação \textbf{não foi avaliada}. Essa distinção
+é mantida deliberadamente para não converter capacidade de medição em alegação de
+benefício não comprovado.
+
+\subsection{Comissionamento}\label{sec:res-comissionamento}
+
+O comissionamento --- transformar hardware de prateleira em dispositivo controlável
+sem recorrer ao aplicativo proprietário nem a portais de desenvolvedor --- é a
+contribuição-título do trabalho, e os resultados aqui são \textbf{assimétricos e, por
+isso mesmo, esclarecedores}.
+
+No caminho \textbf{TP-Link Tapo}, a forma plena foi \textbf{demonstrada}: partindo de
+credenciais de consumidor, o DOMUS estabelece controle local pelo protocolo KLAP
+(Seção~\ref{sec:res-controle}), sem que o uso cotidiano dependa do \textit{app} do
+fabricante ou de servidores externos (TP-LINK, 2024). Esse é o caso que sustenta a
+forma \textit{forte} da tese em um dispositivo real.
+
+No caminho \textbf{Intelbras/Tuya EWS 410}, o comissionamento foi \textbf{bloqueado no
+provisionamento}. A lâmpada nunca chegou a ser controlada em hardware porque o fluxo
+exigiu, na prática, credenciais de baixo nível (\textit{Device~ID} e
+\textit{local\_key}) obtidas por meio do portal de desenvolvedor Tuya~IoT, cujo
+emparelhamento de dispositivos esbarrou no \textbf{limite de dois \textit{slots} de
+dispositivo} da plataforma em regime de avaliação (TUYA, 2025). Um \textit{harness} de
+provisionamento local foi preparado, mas o gargalo permaneceu no ato de vincular o
+dispositivo à conta da plataforma.
+
+A leitura deste bloqueio é o ponto mais importante do capítulo. Ele \textbf{não é um
+fracasso de engenharia a ser minimizado}: é a \textbf{evidência empírica mais forte da
+própria tese}. A barreira de comissionamento que a Introdução postula como o real
+obstáculo à democratização --- aplicativos proprietários, contas em nuvem, portais de
+desenvolvedor em inglês e limites administrativos de plataforma --- foi \textbf{real a
+ponto de bloquear até o autor do trabalho}, um desenvolvedor com acesso ao \textit{harness},
+à documentação e ao ferramental. Se essa barreira detém quem a estuda, seu efeito sobre
+o domicílio típico é qualitativamente mais severo, o que é consistente com a baixa
+penetração de automação residencial no país (IBGE, 2024). O contraste entre o caminho
+Tapo (pleno) e o caminho Tuya (bloqueado) converte-se, assim, de limitação em resultado:
+demonstra simultaneamente que o objetivo é \textit{alcançável} (Tapo) e que a barreira
+que ele ataca é \textit{concreta e mensurável} (Tuya). A validação plena do caminho Tuya
+permanece em andamento e é retomada como limitação declarada no
+Capítulo~\ref{cap:consideracoes}.
+% NOTA: a promessa "sem app / sem portal" está DEMONSTRADA para Tapo e CARACTERIZADA
+% como gap para Tuya. Não afirmar controle da EWS 410 em hardware. Se o timebox da EWS
+% 410 for bem-sucedido antes da defesa, atualizar esta subseção para a forma forte.

@@ -8,8 +8,8 @@
 //
 // Bump de CACHE (v2) faz o 'activate' purgar o shell velho (v1) e recupera quem
 // já estava quebrado no próximo reload.
-const CACHE = 'casai-shell-v2';
-const SHELL = ['/', '/dashboard', '/login', '/manifest.webmanifest', '/icon.svg'];
+const CACHE = 'casai-shell-v3';
+const SHELL = ['/', '/voz', '/inicio', '/login', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

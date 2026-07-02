@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Check, Lightbulb, Plug, Radar } from 'lucide-react';
+import { ArrowLeft, Check, Lightbulb, Plug, Radar, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -295,41 +295,55 @@ export default function AddDevicePage() {
             )}
 
             {protocol === 'TUYA' && (
-              <>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="Device ID (Tuya)">
+              <details className="rounded-lg border bg-secondary/30 p-3 [&>summary::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium">
+                  <span className="flex items-center gap-2">
+                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                    Configuração avançada
+                  </span>
+                  <span className="rounded-full border bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    Em validação técnica
+                  </span>
+                </summary>
+                <div className="mt-3 flex flex-col gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    Controle local Tuya exige a <code>local_key</code> e o Device ID, obtidos pela
+                    plataforma Tuya IoT (comissionamento simplificado em desenvolvimento). Para o
+                    caminho sem configuração, use a Tapo ou &quot;Procurar na rede&quot;.
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Field label="Device ID (Tuya)">
+                      <Input
+                        placeholder="ID do dispositivo na plataforma Tuya"
+                        value={form.externalId}
+                        onChange={(e) => set('externalId', e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Versão do protocolo">
+                      <select
+                        className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                        value={form.protocolVersion}
+                        onChange={(e) => set('protocolVersion', e.target.value)}
+                      >
+                        <option value="3.3">3.3</option>
+                        <option value="3.4">3.4</option>
+                        <option value="3.5">3.5</option>
+                      </select>
+                    </Field>
+                  </div>
+                  <Field label="Local key (será criptografada)">
                     <Input
-                      placeholder="ID do dispositivo na plataforma Tuya"
-                      value={form.externalId}
-                      onChange={(e) => set('externalId', e.target.value)}
-                      required
+                      type="password"
+                      placeholder="local_key do dispositivo"
+                      value={form.localKey}
+                      onChange={(e) => set('localKey', e.target.value)}
                     />
                   </Field>
-                  <Field label="Versão do protocolo">
-                    <select
-                      className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                      value={form.protocolVersion}
-                      onChange={(e) => set('protocolVersion', e.target.value)}
-                    >
-                      <option value="3.3">3.3</option>
-                      <option value="3.4">3.4</option>
-                      <option value="3.5">3.5</option>
-                    </select>
-                  </Field>
+                  <p className="text-xs text-muted-foreground">
+                    Como obter o Device ID e a local_key: veja docs/HARDWARE_SETUP.md no repositório.
+                  </p>
                 </div>
-                <Field label="Local key (será criptografada)">
-                  <Input
-                    type="password"
-                    placeholder="local_key do dispositivo"
-                    value={form.localKey}
-                    onChange={(e) => set('localKey', e.target.value)}
-                    required
-                  />
-                </Field>
-                <p className="text-xs text-muted-foreground">
-                  Como obter o Device ID e a local_key: veja docs/HARDWARE_SETUP.md no repositório.
-                </p>
-              </>
+              </details>
             )}
 
             {protocol === 'TUYA_CLOUD' && (

@@ -40,15 +40,22 @@
   --destructive-foreground: #ffffff;
   --sidebar-accent-foreground: #171717;
   --sidebar-primary-foreground: #fafafa;
+  /* Aurora de fundo — harmonizada com as cores da logo (folhagem verde,
+     bico dourado, ponta azul do tucano). Só o fundo usa isso. */
+  --bg-green: #4a9a68;
+  --bg-gold: #e0ad48;
+  --bg-blue: #4b83c4;
 }
 
 .dark {
-  --card: #0a0a0a;
+  /* Card levemente acima do fundo (#0a0a0a) para dar elevação — sem o card
+     "sumir" no dark. Borda hairline translúcida reforça a separação. */
+  --card: #141416;
   --ring: #525252;
   --input: #262626;
   --muted: #262626;
   --accent: #262626;
-  --border: #262626;
+  --border: rgb(255 255 255 / 0.08);
   --chart-1: #91c5ff;
   --chart-2: #3a81f6;
   --chart-3: #2563ef;
@@ -75,6 +82,10 @@
   --destructive-foreground: #ffffff;
   --sidebar-accent-foreground: #fafafa;
   --sidebar-primary-foreground: #0a0a0a;
+  /* Versões mais profundas/dessaturadas para o dark, ainda harmônicas. */
+  --bg-green: #2f6b45;
+  --bg-gold: #b98632;
+  --bg-blue: #2b5590;
 }
 
 @theme inline {
@@ -130,6 +141,9 @@
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
+    /* Números de largura fixa — energia (W/kWh/R$) e latência (ms) param de
+       "dançar" ao atualizar em tempo real. */
+    font-variant-numeric: tabular-nums;
   }
   /* Acessibilidade: respeitar quem prefere menos movimento. */
   @media (prefers-reduced-motion: reduce) {
@@ -147,4 +161,35 @@
   background-color: var(--card);
   border: 1px solid var(--border);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+/* Wordmark/títulos DOMUS — Romario (display condensada). */
+.font-romario {
+  font-family: var(--font-romario), var(--font-sans);
+}
+
+/* Ícones brasileiros (dingbat) — cada char vira um ícone; herda a cor do texto
+   (currentColor), então respeita o tema monocromático. */
+.font-brasil {
+  font-family: var(--font-brasil);
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* TUCO (mascote) — respiração no repouso e flutuar quando feliz. */
+@keyframes tuco-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.015); }
+}
+.animate-tuco-breathe {
+  animation: tuco-breathe 3.4s ease-in-out infinite;
+}
+@keyframes tuco-hover {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.animate-tuco-hover {
+  animation: tuco-hover 1.4s ease-in-out infinite;
 }

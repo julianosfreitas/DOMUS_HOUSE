@@ -9,6 +9,7 @@ import { Home, Sparkles, Plug, Trophy, Mic } from 'lucide-react';
 import { GradientBackground } from '@/components/ui/gradient-background';
 import { AccountMenu } from '@/components/account-menu';
 import { VoiceFab } from '@/components/voice-fab';
+import { BrIcon } from '@/components/br-icon';
 import { api, getToken, getRefresh, clearTokens } from '@/lib/api';
 import { disconnectSocket } from '@/lib/socket';
 import { unlockSfx } from '@/lib/sfx';
@@ -21,6 +22,16 @@ const NAV = [
   { href: '/rotinas', label: 'Rotinas', icon: Sparkles },
   { href: '/conquistas', label: 'Conquistas', icon: Trophy },
 ] as const;
+
+/** Ícone brasileiro (dingbat) do cabeçalho, por rota — dá identidade e dinâmica. */
+function headerIcon(path: string): string {
+  if (path.startsWith('/voz')) return 'y'; // arara — a que "fala"
+  if (path.startsWith('/inicio')) return '^'; // bandeira
+  if (path.startsWith('/dispositivos')) return 'D'; // tucano (marca)
+  if (path.startsWith('/rotinas')) return '$'; // sol
+  if (path.startsWith('/conquistas')) return '3'; // troféu
+  return 'D';
+}
 
 /**
  * Shell autenticado: topbar minimalista (marca · navegação · nível · conta).
@@ -88,17 +99,19 @@ export function AppShell({
 
       {/* Topbar */}
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-12 w-full max-w-5xl items-center gap-1 px-2 sm:px-4">
+        <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-1 px-2 sm:px-4">
           <Link href="/voz" className="flex shrink-0 items-center gap-2" aria-label="DOMUS — início">
             <Image
-              src="/brand/domus-emblem.png"
+              src="/brand/domus-mark.png"
               alt="DOMUS"
-              width={26}
-              height={33}
+              width={44}
+              height={44}
               priority
-              className="h-8 w-auto"
+              className="h-11 w-11 object-contain"
             />
-            <span className="hidden text-sm font-bold tracking-tight lg:inline">DOMUS</span>
+            <span className="font-romario hidden text-2xl leading-none tracking-tight sm:inline">
+              DOMUS
+            </span>
           </Link>
 
           <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
@@ -117,7 +130,7 @@ export function AppShell({
                   )}
                 >
                   <Icon className={cn('h-[18px] w-[18px] shrink-0', active && 'text-chart-2')} />
-                  <span className="hidden lg:inline">{label}</span>
+                  <span className="font-romario hidden text-base leading-none lg:inline">{label}</span>
                 </Link>
               );
             })}
@@ -140,15 +153,24 @@ export function AppShell({
 
       {/* Conteúdo */}
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-6 sm:px-6 md:pb-10">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+        <div className="mb-6 flex items-center gap-3">
+          <BrIcon
+            c={headerIcon(pathname)}
+            className="shrink-0 text-4xl text-muted-foreground/60 sm:text-5xl"
+          />
+          <div className="min-w-0">
+            <h1 className="font-romario truncate text-3xl leading-none tracking-tight sm:text-4xl">
+              {title}
+            </h1>
+            {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+          </div>
         </div>
         {children}
       </main>
 
-      {/* FAB de voz global */}
-      <VoiceFab className="bottom-6" />
+      {/* FAB de voz global — oculto na própria /voz, onde o assistente já captura
+          o microfone continuamente (dois getUserMedia na mesma tela = conflito). */}
+      {pathname !== '/voz' && <VoiceFab className="bottom-6" />}
     </div>
   );
 }

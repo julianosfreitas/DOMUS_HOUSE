@@ -1,0 +1,230 @@
+%======================= CONSIDERAÇÕES FINAIS =======================
+% Capítulo 7. Retoma a pergunta norteadora e a hipótese (§1.2), sintetiza o que o
+% artefato demonstrou (Cap. 6) e delimita, com honestidade, o que permanece como
+% hipótese. Estrutura: retomada da hipótese (forma fraca x forte) -> limitações ->
+% trabalhos futuros. Cite apenas o conjunto canônico de referências.
+\section{Considerações finais}\label{cap:consideracoes}
+
+Este trabalho partiu de uma constatação incômoda: no Brasil, o hardware de automação
+residencial já é barato --- uma lâmpada ou tomada Wi-Fi genérica do ecossistema Tuya
+custa entre R\$~30 e R\$~60 ---, mas transformar esse hardware em automação utilizável
+permanece inacessível ao domicílio típico. A penetração de dispositivos inteligentes
+subiu apenas de 14,3\% (2022) para 16,4\% (2024) dos domicílios, contra cerca de 44\%
+nos Estados Unidos e no Reino Unido, e com forte corte regional e de renda (IBGE, 2024).
+A tese central defendida foi que essa exclusão decorre menos do \emph{preço de compra}
+e mais da \emph{barreira de comissionamento} --- a exigência de aplicativos
+proprietários, contas em nuvem e portais de desenvolvedor em inglês para colocar o
+aparelho em operação ---, agravada por uma dependência estrutural de conectividade que
+só 22\% dos domicílios possuem de forma satisfatória (CETIC.br, 2024). O princípio
+operacional adotado como resposta foi ``nuvem uma vez, local para sempre''.
+
+A partir dessa tese, o DOMUS foi concebido como uma prova de conceito de \textit{hub}
+de automação \textit{local-first}, controlável por voz em português brasileiro
+processada no próprio \textit{hub}, e construído sobre o padrão \textit{Adapter} para
+isolar a heterogeneidade de protocolos. As seções seguintes retomam a hipótese de
+pesquisa formulada na Seção~\ref{cap:introducao}, respondem-na separando o que foi
+efetivamente demonstrado do que permanece como conjectura, e delimitam as limitações e
+os desdobramentos do estudo.
+% ATENÇÃO: se o label da introdução não for cap:introducao, ajuste a referência acima.
+
+\subsection{Retomada da hipótese: forma fraca e forma forte}
+
+A hipótese central --- \emph{a democratização da automação residencial depende da
+redução da barreira de comissionamento, e não do custo do hardware} --- foi, no
+Capítulo~\ref{cap:resultados}, reformulada como uma alegação de viabilidade
+falsificável, verificável dispositivo a dispositivo: \emph{é tecnicamente viável
+comissionar e controlar localmente, sem aplicativo do fabricante e sem portais de
+desenvolvedor, dispositivos Wi-Fi genéricos de baixo custo, com comandos de voz em
+português processados integralmente no \textit{hub}, a custo incremental inferior a
+R\$~200}. Para responder a essa hipótese com honestidade, é preciso distingui-la em
+duas formas de força argumentativa distinta.
+
+\subsubsection{Forma fraca --- demonstrada}
+
+Na sua forma fraca --- \emph{a viabilidade técnica do controle local por voz em
+português brasileiro, sem dependência permanente de nuvem} ---, a hipótese está
+\textbf{demonstrada}. O resultado mais sólido é o controle local da tomada TP-Link
+Tapo~P110 pelo protocolo KLAP, com operações de liga/desliga bem-sucedidas a latências
+de 201--332~ms; como cada operação é confirmada por leitura de estado e a
+indisponibilidade produz erro explícito, o sucesso comprova comunicação real com o
+aparelho, afastando a hipótese de simulação silenciosa. Esse caminho é a demonstração
+plena da tese: as credenciais utilizadas são de \emph{consumidor} (as mesmas do
+aplicativo comum), não de desenvolvedor, e ainda assim habilitam controle inteiramente
+local (TP-LINK, 2024). O reconhecimento de fala, por sua vez, roda no próprio
+\textit{hub} via \textit{Whisper} (RADFORD et al., 2022), descartando o áudio após a
+transcrição, em coerência com o princípio de minimização (BRASIL, 2018): sobre 138
+comandos de voz reais instrumentados, a acurácia de \emph{intenção} foi de 87,7\%, com
+latência ponta-a-ponta de 463~ms na mediana (p50) e 2.140~ms no percentil~95 (p95). A
+arquitetura, portanto, sustenta o que se propôs a sustentar: um plano de controle ---
+\textit{Whisper}, adaptadores, chaves e dados --- que existe apenas na instalação local,
+com a nuvem confinada ao papel de vitrine, na acepção de \textit{local-first} de
+Kleppmann et al. (2019).
+
+\subsubsection{Forma forte --- ainda hipótese}
+
+Na sua forma forte --- \emph{a democratização efetivamente realizada}, isto é, a
+automação tornada acessível ao usuário não técnico e de baixa renda ---, a hipótese
+\textbf{permanece como conjectura}, e o trabalho é deliberadamente honesto quanto a
+isso. Três lacunas sustentam essa ressalva. Primeiro, a própria contribuição que dá
+nome ao trabalho --- comissionar sem aplicativo do fabricante e sem portal de
+desenvolvedor --- só foi demonstrada plenamente no caminho Tapo; a lâmpada Intelbras/Tuya
+EWS~410 nunca foi controlada em hardware, e seu comissionamento local permaneceu
+\emph{bloqueado} ao longo do estudo. Longe de ser mero fracasso, esse bloqueio constitui
+\textbf{evidência empírica da própria barreira que a tese nomeia}: se o comissionamento
+de um dispositivo Wi-Fi genérico é complexo a ponto de resistir ao autor do sistema
+--- que dispõe de documentação, ferramentas e do harness pronto ---, então ele é, com
+folga, complexo demais para o domicílio-alvo. Segundo, três dos quatro critérios de
+sucesso definidos na metodologia --- taxa de erro de palavra (WER) sobre corpus
+rotulado, escala de usabilidade (SUS) com o público-alvo e o custo total consolidado em
+uma lista de materiais (BOM) --- ainda não foram coletados, de modo que as afirmações de
+\emph{acessibilidade} e de \emph{economia} não estão autorizadas pelos dados. Terceiro,
+mesmo a métrica de voz precisa ser lida com cautela: a taxa de sucesso de
+\emph{execução} foi de apenas 66,7\%, mas essa queda é dominada por \emph{hardware
+offline}, não pelo interpretador de comandos --- o \textit{outlier} de latência máxima,
+de 12,3~s, corresponde a um \textit{timeout} de hardware, não a lentidão do
+processamento de linguagem. Registrou-se, ainda, ao menos uma alucinação do
+\textit{Whisper}, que transcreveu ruído de fundo como ``[Som de futebol]'', ilustrando a
+tensão real entre custo e acurácia num modelo pequeno rodando em \textit{hardware}
+modesto.
+
+A Tabela~\ref{tab:sintese-hipotese} sintetiza essa partição entre o demonstrado e o
+pendente.
+
+\begin{table}[H]
+\centering
+\caption{Síntese da resposta à hipótese: o que foi demonstrado e o que permanece
+conjectura ao encerramento do estudo.}
+\label{tab:sintese-hipotese}
+\begin{tabular}{@{}p{4.2cm}ll@{}}
+\toprule
+\textbf{Alegação} & \textbf{Estado} & \textbf{Evidência / pendência} \\
+\midrule
+Controle local sem nuvem (Tapo P110) & Demonstrada & Latências 201--332~ms via KLAP;
+confirmação por leitura \\
+Voz pt-BR processada no \textit{hub} & Demonstrada & Intenção 87,7\% em 138 comandos;
+áudio descartado \\
+Latência de voz aceitável & Parcial & p50 463~ms / p95 2.140~ms; \textit{outlier} 12,3~s
+= \textit{timeout} de hardware \\
+Comissionamento Tuya sem app/portal & Em validação & EWS~410 bloqueada --- evidência
+empírica da barreira \\
+Acurácia de fala (WER) & A coletar & [WER] --- corpus rotulado pendente \\
+Acessibilidade ao público-alvo & A coletar & [SUS] --- teste com $n=3$--5 pendente \\
+Custo incremental $<$ R\$~200 & A coletar & [BOM] datada, 2 cenários (com/sem \textit{hub}) \\
+\bottomrule
+\end{tabular}
+\end{table}
+% Preencher [WER], [SUS] e [BOM] após a semana de coleta de métricas.
+
+Em suma, o estudo responde afirmativamente à \emph{pergunta norteadora} na dimensão
+técnica e mantém como hipótese aberta a dimensão socioeconômica: demonstra-se que a
+arquitetura proposta \emph{pode} sustentar automação local, barata e por voz, mas ainda
+não se demonstra que ela \emph{de fato} democratiza o acesso --- daí o caráter
+\emph{direcional} do título, que aponta para um objetivo perseguido, não para um
+resultado já alcançado.
+
+\subsection{Limitações}\label{sec:limitacoes}
+
+O trabalho está sujeito às seguintes limitações, declaradas de forma explícita para
+delimitar o alcance das conclusões:
+
+\begin{enumerate}
+  \item \textbf{Comissionamento da lâmpada Wi-Fi não concluído em hardware.} O
+  provisionamento da Intelbras/Tuya EWS~410 permaneceu bloqueado; o controle da lâmpada
+  física --- incluindo brilho e cor --- não foi exercido em hardware ao longo do estudo,
+  e a validação do adaptador Tuya deu-se contra um dispositivo que expõe o mesmo modelo
+  de dados, não contra o aparelho físico-alvo (TUYA, 2025).
+
+  \item \textbf{Consumo de energia sem série com carga real.} O painel de energia
+  agrega leituras da Tapo~P110, porém a tomada foi operada sem carga significativa
+  durante a coleta; as afirmações de ``economia antes/depois'' não estão sustentadas por
+  série temporal com um aparelho consumindo potência apreciável, e a tarifa de energia
+  utilizada é um valor fixo de referência. O painel deve, portanto, ser lido como
+  \emph{demonstrado}, e a economia como \emph{não avaliada}.
+
+  \item \textbf{Funcionalidades de organização sem endpoint.} Os conceitos de cômodos
+  (\textit{Rooms}) e de multiusuário (\textit{Users}) existem no modelo de dados, mas
+  não dispõem de controladores/endpoints completos; permanecem como estrutura preparada,
+  não como funcionalidade exercitável de ponta a ponta.
+
+  \item \textbf{Adaptadores físicos fora da cobertura de testes, por \emph{design}.} A
+  cobertura automatizada (aproximadamente [...\%]) % inserir a cobertura real reportada no Cap. 6 (ex.: 88,1%)
+  apoia-se no adaptador MOCK; os adaptadores que falam com \textit{hardware} real não
+  possuem testes unitários dedicados, por decisão de projeto que veda testes dependentes
+  de hardware físico no ambiente de integração contínua. A validação desses adaptadores
+  é empírica, não automatizada.
+
+  \item \textbf{Retenção de transcrições suspensa e consentida durante o estudo.} A
+  política de retenção mínima descrita no projeto --- descarte imediato da transcrição
+  após a execução e expurgo diário do log de auditoria --- \emph{não} esteve ativa
+  durante a fase de coleta: as 138 transcrições foram deliberadamente mantidas, mediante
+  consentimento informado, para viabilizar as métricas do Capítulo~\ref{cap:resultados}.
+  Trata-se de retenção configurável, habilitada de forma temporária e justificada à luz
+  da base legal do consentimento (BRASIL, 2018); a purga automática permanece como
+  intenção de projeto, não como comportamento implementado.
+
+  \item \textbf{``Local-first'' por configuração, não por contingência automática.} No
+  DOMUS, o controle local é o caminho \emph{primário por configuração}, e a falha do
+  controle local produz \emph{aviso ao usuário} --- não uma queda silenciosa para a
+  nuvem. Não há, portanto, \textit{fallback} automático local~$\rightarrow$~nuvem no
+  sentido pleno da literatura de \textit{local-first} (KLEPPMANN et al., 2019); a
+  garantia oferecida é a de que, se o controle local quebrar, o sistema avisa, e não a
+  de reconvergência automática de estado entre réplicas.
+
+  \item \textbf{Título direcional.} Conforme discutido acima, o título afirma uma
+  contribuição \emph{para} a democratização, e não a democratização realizada. Essa
+  natureza direcional é assumida explicitamente: a validação socioeconômica plena
+  (acessibilidade medida, custo consolidado, adoção pelo público-alvo) excede o escopo
+  temporal e amostral deste trabalho.
+\end{enumerate}
+
+\subsection{Trabalhos futuros}\label{sec:futuros}
+
+Os desdobramentos naturais do estudo organizam-se em torno de fechar a distância entre a
+forma fraca já demonstrada e a forma forte ainda hipotética:
+
+\begin{enumerate}
+  \item \textbf{Comissionamento simplificado para dispositivos Tuya.} Concluir, em
+  hardware, o provisionamento local da EWS~410 e generalizar o fluxo ``nuvem uma vez,
+  local para sempre'' para o parque Wi-Fi barato, reduzindo a extração de credenciais
+  (\textit{local key}, \textit{Device ID}) a um passo que um usuário não técnico consiga
+  executar --- este é o principal trabalho de engenharia em aberto e a condição para
+  reivindicar a forma forte da tese (TUYA, 2025).
+
+  \item \textbf{Suporte a rádios padronizados: Zigbee e Matter.} Incorporar
+  comissionamento local de rádio (Zigbee, e Matter via IP local com QR), aproximando o
+  DOMUS do estado da arte em provisionamento (CONNECTIVITY STANDARDS ALLIANCE, 2024) e do
+  que ferramentas maduras como o Home Assistant (HOME ASSISTANT, 2025) já oferecem para
+  além do Wi-Fi genérico.
+
+  \item \textbf{\textit{Hub} distribuído como \textit{appliance} atualizável e
+  federável.} Empacotar o \textit{hub} como imagem pré-configurada \textit{plug-and-play}
+  (cartão/dispositivo), eliminando a instalação de \textit{runtime} e banco --- hoje uma
+  barreira técnica tão relevante quanto parear no aplicativo do fabricante. Para não
+  reintroduzir dependência proprietária nem criar um vetor de invasão de IoT
+  desatualizada, o \textit{appliance} deve buscar e aplicar atualizações de segurança
+  assinadas por um mecanismo \emph{aberto e federável} (repositório público, espelhável
+  pela comunidade).
+
+  \item \textbf{Multiusuário completo.} Evoluir o isolamento por usuário e os cômodos de
+  estrutura de dados para funcionalidade plena, com controladores, papéis e
+  compartilhamento de dispositivos dentro do domicílio.
+
+  \item \textbf{Avaliação de usabilidade com público idoso.} Executar o protocolo de
+  usabilidade (tarefas observadas, taxa de sucesso, tempo e escala SUS) com participantes
+  do público-alvo --- em especial pessoas idosas, para quem a interface de voz é porta de
+  entrada ---, coletando também o corpus rotulado para o cálculo de WER e da matriz de
+  confusão por intenção. É a coleta de maior retorno para transformar a alegação de
+  acessibilidade de hipótese em resultado.
+
+  \item \textbf{Endurecimento de segurança na LAN (TLS/WSS).} Adicionar transporte
+  cifrado (TLS/WSS) às comunicações na rede local, hoje deixado fora do MVP para evitar
+  complexidade prematura, fortalecendo a postura de segurança do \textit{appliance}
+  quando este for exposto a redes domésticas heterogêneas.
+\end{enumerate}
+
+Ao término, o DOMUS entrega um artefato funcional, versionado e demonstrável que
+comprova a \emph{viabilidade técnica} do controle local por voz em português sem
+dependência permanente de nuvem, ao mesmo tempo em que documenta, com transparência, a
+distância que ainda o separa da \emph{democratização} que persegue --- distância cujo
+principal marco, o comissionamento acessível de dispositivos Wi-Fi baratos, o próprio
+estudo caracterizou como a barreira decisiva.

@@ -3,8 +3,11 @@
 import * as React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Mic, MicOff, Loader2, Check, X } from 'lucide-react';
+import { X, Keyboard, Send } from 'lucide-react';
 import { AppShell } from '@/components/app-shell';
+import { TucoMascot, type TucoState } from '@/components/tuco-mascot';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { speak } from '@/lib/tts';
 import { playSfx, preloadSfx, unlockSfx } from '@/lib/sfx';
@@ -29,6 +32,10 @@ export default function VozPage() {
   const [state, setState] = React.useState<VState>('init');
   const [last, setLast] = React.useState<VoiceResult | null>(null);
   const [blockedMsg, setBlockedMsg] = React.useState('');
+  // Fallback por texto: se o microfone falhar/for negado na banca, digita-se o
+  // comando e ele segue o MESMO pipeline (POST /voice/command) via texto.
+  const [textOpen, setTextOpen] = React.useState(false);
+  const [textCmd, setTextCmd] = React.useState('');
 
   const mounted = React.useRef(true);
   const activeRef = React.useRef(false);
@@ -51,23 +58,31 @@ export default function VozPage() {
     if (ringRef.current) ringRef.current.style.transform = 'scale(1)';
   }, []);
 
+  // Aplica o resultado do backend na UI (mesmo retorno para áudio e texto).
+  const applyResult = React.useCallback(
+    (res: VoiceResult) => {
+      if (!mounted.current) return;
+      setLast(res);
+      if (res.executed) {
+        setState('success');
+        playSfx('done'); // earcon de sucesso
+        speak(`Comando ${res.transcript} executado`);
+        void qc.invalidateQueries({ queryKey: ['devices'] });
+      } else {
+        setState('error');
+        playSfx('fail'); // earcon de falha (não entendeu)
+      }
+    },
+    [qc],
+  );
+
   const process = React.useCallback(
     async (blob: Blob) => {
       if (!mounted.current) return;
       setState('processing');
       try {
         const res = await api.voiceCommandAudio(blob);
-        if (!mounted.current) return;
-        setLast(res);
-        if (res.executed) {
-          setState('success');
-          playSfx('done'); // earcon de sucesso
-          speak(`Comando ${res.transcript} executado`);
-          void qc.invalidateQueries({ queryKey: ['devices'] });
-        } else {
-          setState('error');
-          playSfx('fail'); // earcon de falha (não entendeu)
-        }
+        applyResult(res);
       } catch {
         if (mounted.current) {
           setLast(null);
@@ -78,7 +93,30 @@ export default function VozPage() {
       // Re-arma a escuta após um respiro (mãos-livres contínuo).
       window.setTimeout(() => mounted.current && startListenRef.current(), 1700);
     },
-    [qc],
+    [applyResult],
+  );
+
+  // Envia um comando digitado (fallback quando o microfone falha).
+  const sendText = React.useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      const text = textCmd.trim();
+      if (!text || !mounted.current) return;
+      cleanupAudio(); // libera o mic caso estivesse ativo — sem disputa de getUserMedia
+      setState('processing');
+      try {
+        const res = await api.voiceCommandText(text);
+        applyResult(res);
+        setTextCmd('');
+      } catch {
+        if (mounted.current) {
+          setLast(null);
+          setState('error');
+          playSfx('fail');
+        }
+      }
+    },
+    [textCmd, cleanupAudio, applyResult],
   );
 
   const startListen = React.useCallback(async () => {
@@ -207,9 +245,12 @@ export default function VozPage() {
   }
 
   const listening = state === 'listening' || state === 'speech';
+  // Estado do mascote TUCO: sucesso = feliz, erro/bloqueado = cabisbaixo, resto = escutando.
+  const mascot: TucoState =
+    state === 'success' ? 'entendeu' : state === 'error' || state === 'blocked' ? 'cabisbaixo' : 'escutando';
 
   return (
-    <AppShell title="Assistente de voz" subtitle="Fale um comando — ele executa sozinho ao terminar">
+    <AppShell title="TUCO" subtitle="Seu assistente de voz — fale um comando">
       <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center gap-8 py-6">
         {/* Orbe do microfone */}
         <button
@@ -233,39 +274,8 @@ export default function VozPage() {
           {listening && (
             <span className="absolute inset-0 animate-ping rounded-full bg-primary/20" style={{ animationDuration: '1.8s' }} />
           )}
-          {/* Miolo */}
-          <div
-            className={cn(
-              'relative z-10 flex h-24 w-24 items-center justify-center rounded-full border-2 shadow-sm transition-colors sm:h-28 sm:w-28',
-              state === 'success' && 'border-chart-2 bg-chart-2/10 text-chart-2',
-              state === 'error' && 'border-destructive bg-destructive/10 text-destructive',
-              state === 'blocked' && 'border-muted-foreground/40 bg-muted text-muted-foreground',
-              (listening || state === 'processing' || state === 'idle' || state === 'init') &&
-                'border-primary/40 bg-background text-foreground',
-            )}
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span
-                key={state}
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={state === 'error' ? { scale: 1, opacity: 1, x: [0, -6, 6, -4, 4, 0] } : { scale: 1, opacity: 1 }}
-                exit={{ scale: 0.6, opacity: 0 }}
-                transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
-              >
-                {state === 'processing' ? (
-                  <Loader2 className="h-10 w-10 animate-spin" />
-                ) : state === 'success' ? (
-                  <Check className="h-11 w-11" />
-                ) : state === 'error' ? (
-                  <X className="h-11 w-11" />
-                ) : state === 'blocked' || state === 'idle' ? (
-                  <MicOff className="h-10 w-10" />
-                ) : (
-                  <Mic className="h-10 w-10" />
-                )}
-              </motion.span>
-            </AnimatePresence>
-          </div>
+          {/* TUCO — mascote tucano pousado no centro (substitui o antigo ícone de mic) */}
+          <TucoMascot state={mascot} className="relative z-10" />
         </button>
 
         {/* Status inline (sem pop-ups) */}
@@ -307,6 +317,47 @@ export default function VozPage() {
               )}
             </motion.div>
           </AnimatePresence>
+        </div>
+
+        {/* Fallback por texto — plano B se o microfone falhar/for negado.
+            O atalho só aparece quando o mic está bloqueado ou pausado; uma vez
+            aberto, o campo permanece disponível (útil na banca). */}
+        <div className="w-full max-w-sm">
+          {textOpen ? (
+            <form onSubmit={sendText} className="flex items-center gap-2">
+              <Input
+                autoFocus
+                value={textCmd}
+                onChange={(e) => setTextCmd(e.target.value)}
+                placeholder="Ex.: ligar a luz"
+                aria-label="Digite um comando"
+                className="flex-1"
+              />
+              <Button type="submit" size="icon" aria-label="Enviar comando" disabled={!textCmd.trim()}>
+                <Send className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Fechar digitação"
+                onClick={() => setTextOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </form>
+          ) : (
+            (state === 'blocked' || state === 'idle') && (
+              <button
+                type="button"
+                onClick={() => setTextOpen(true)}
+                className="mx-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Keyboard className="h-4 w-4" />
+                Digitar comando
+              </button>
+            )
+          )}
         </div>
       </div>
     </AppShell>

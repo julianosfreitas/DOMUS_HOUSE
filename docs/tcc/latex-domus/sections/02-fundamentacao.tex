@@ -1,0 +1,250 @@
+%========================= CAPÍTULO 2 =========================
+% FUNDAMENTAÇÃO TEÓRICA
+% Incluído via \input em main.tex. NÃO reabrir preâmbulo/documento.
+% Citações: apenas o conjunto canônico (ver sections/referencias.tex).
+% Marcadores [...] indicam dado a coletar; comentários % orientam o preenchimento.
+%==============================================================
+\section{Fundamentação teórica}\label{cap:fundamentacao}
+
+Este capítulo reúne os conceitos que sustentam o DOMUS e delimita, com precisão,
+o problema que o trabalho ataca. Parte-se do panorama de automação residencial e
+\textit{Internet of Things} (IoT) no Brasil (Seção~\ref{sec:automacao-iot}) para,
+em seguida, fixar o conceito operacional de arquitetura \textit{local-first}
+adotado (Seção~\ref{sec:local-first}) e a distinção --- central para a tese ---
+entre \textit{comissionar} e \textit{controlar} um dispositivo
+(Seção~\ref{sec:comissionamento-controle}). Fecha-se com os fundamentos técnicos
+mobilizados na solução: protocolos de dispositivos (Seção~\ref{sec:protocolos}),
+reconhecimento de fala (Seção~\ref{sec:fala}), privacidade sob a LGPD
+(Seção~\ref{sec:privacidade}) e o padrão de projeto \textit{Adapter}
+(Seção~\ref{sec:adapter}).
+
+\subsection{Automação residencial e IoT}\label{sec:automacao-iot}
+
+Automação residencial designa o conjunto de tecnologias que permite monitorar e
+controlar, de forma programável, dispositivos de uma residência --- iluminação,
+tomadas, sensores e climatização ---, tipicamente integrados por uma rede local e
+expostos ao usuário por um aplicativo ou interface de voz. Tais dispositivos são
+instâncias domésticas de IoT: objetos físicos dotados de conectividade que trocam
+estado e comandos por rede.
+
+O mercado brasileiro de \textit{smart home} está em expansão acelerada, com
+projeções de crescimento de dois dígitos ao ano até o início da próxima década
+(IMARC, 2025; IDC, 2024; STATISTA, 2023). Ao mesmo tempo, o hardware já é barato:
+lâmpadas e tomadas Wi-Fi genéricas do ecossistema Tuya são vendidas por faixas de
+poucas dezenas de reais. O gargalo da adoção, portanto, deslocou-se do
+\textit{preço do hardware} para as \textit{barreiras de uso}: dependência de
+aplicativos proprietários, de contas em nuvem e de certo letramento digital para
+concluir a instalação. Esse descompasso é relevante em um país onde o acesso
+domiciliar à Internet já é majoritário, mas ainda desigual em qualidade e
+autonomia de uso (IBGE, 2024; CETIC.br, 2024).
+
+% AÇÃO DO ALUNO: inserir 1–2 números concretos das fontes acima para ancorar o argumento.
+% Ex.: percentual de domicílios com Internet (IBGE/CETIC.br) e tamanho/CAGR do mercado
+% brasileiro de smart home (IMARC/IDC/STATISTA). Substituir os [...] abaixo.
+Segundo [...], [...\%] dos domicílios brasileiros têm acesso à Internet
+(IBGE, 2024), enquanto o mercado nacional de automação residencial é projetado em
+[US\$~...] com crescimento anual de [...\%] (IMARC, 2025). O DOMUS parte da
+hipótese de que, nesse cenário, a democratização depende menos do custo do
+hardware e mais da redução da barreira de instalação.
+
+\subsection{Arquitetura local-first}\label{sec:local-first}
+
+O termo \textit{local-first} foi cunhado por KLEPPMANN et al. (2019) no contexto
+de \textit{software colaborativo} (editores de texto, planilhas, quadros). Naquele
+sentido, um sistema \textit{local-first} mantém a cópia canônica dos dados no
+dispositivo do próprio usuário --- e não em um servidor remoto ---, opera sem
+conexão, trata a rede como recurso \textit{opcional} de sincronização e preserva
+propriedade, longevidade e privacidade dos dados. Os autores propõem sete ideais e
+apoiam a sincronização entre réplicas em estruturas de dados livres de conflito
+(\textit{Conflict-free Replicated Data Types}, CRDTs), voltadas a \textit{múltiplos
+dispositivos editando o mesmo documento}.
+
+O DOMUS adota o \textit{princípio} de KLEPPMANN et al. (2019) --- ``você é dono dos
+seus dados, apesar da nuvem'' ---, mas o \textit{objeto} é distinto: não é um
+documento colaborativo, e sim um \textbf{plano de controle} de dispositivos
+físicos. Por isso, define-se aqui \textit{local-first} de forma \textbf{operacional}
+para este trabalho: o plano de controle do DOMUS --- o reconhecimento de fala
+(\textit{Whisper}), os \textit{adapters} de dispositivo, as credenciais/chaves de
+controle (\textit{local\_key} do Tuya e a sessão KLAP do Tapo) e os dados de
+telemetria e histórico --- \textbf{existe e funciona apenas na instalação local}
+(o \textit{hub} na LAN do usuário). A nuvem não é dependência de tempo de execução:
+quando muito, é acionada \textit{uma única vez} e de forma \textit{explícita e
+comentada} --- por exemplo, para obter a \textit{local\_key} no momento do
+comissionamento ---, nunca no laço de controle do dia a dia. Sintetiza-se essa
+postura no lema de projeto ``nuvem uma vez, local para sempre''.
+
+Três diferenças em relação à acepção original de KLEPPMANN et al. (2019) merecem
+registro. Primeiro, não há problema de \textit{merge} concorrente entre réplicas
+(não há CRDTs): o estado canônico do dispositivo é o próprio dispositivo, e o
+\textit{hub} é a única autoridade de controle na LAN. Segundo, a preocupação
+central desloca-se de \textit{colaboração offline} para \textit{soberania do plano
+de controle} --- garantir que o comando de voz e a ação sobre a lâmpada não
+dependam de um datacenter. Terceiro, o requisito de privacidade (Seção~\ref{sec:privacidade})
+é reforçado pela localidade do processamento de áudio, e não apenas pela posse dos
+documentos. Quando o controle local falha, o sistema \textbf{avisa} em vez de cair
+silenciosamente para a nuvem --- decisão de projeto que torna a localidade
+verificável pelo usuário.
+
+\subsection{Comissionamento versus controle}\label{sec:comissionamento-controle}
+
+A distinção que organiza toda a contribuição deste trabalho é a que separa
+\textbf{comissionamento} (\textit{commissioning}) de \textbf{controle}:
+
+\begin{itemize}
+  \item \textbf{Controle:} com o dispositivo \textit{já} na Wi-Fi da casa,
+        emitir comandos (ligar/desligar, ajustar brilho) e ler estado
+        (potência, energia). É o problema ``bem resolvido''.
+  \item \textbf{Comissionamento:} levar um dispositivo \textit{de fábrica} a
+        entrar na Wi-Fi doméstica \textit{e} receber a credencial que habilita o
+        controle local --- idealmente \textbf{sem} o aplicativo do fabricante nem
+        conta em nuvem. É o problema em aberto que o DOMUS ataca.
+\end{itemize}
+
+Essa fronteira explica por que uma plataforma madura como o Home Assistant (HA)
+não dispensa a contribuição do DOMUS. O HA oferece amplitude de \textit{controle}
+--- inclusive local, após o \textit{onboarding} --- por meio de suas integrações,
+mas as integrações oficiais de Tuya e de TP-Link/Tapo \textbf{pressupõem o
+pareamento prévio pelo aplicativo do fabricante} (Smart Life/Tuya, Kasa/Tapo) e uma
+conta em nuvem, limitando-se, no caso Tuya, a \textit{recarregar} dispositivos que
+já foram pareados por fora (HOME ASSISTANT, 2025). Onde o HA comissiona de fato ---
+via Matter ou Improv-over-BLE ---, exige rádio Bluetooth do celular ou
+\textit{firmware} aberto embarcado, requisitos que o hardware-alvo de baixo custo
+(Seção~\ref{sec:protocolos}) não satisfaz. Ou seja, mesmo o HA \textit{terceiriza o
+comissionamento} para o app do fabricante. A análise detalhada dessa dependência,
+com as fontes por integração, é desenvolvida no
+Capítulo~\ref{cap:trabalhos-relacionados}; aqui basta fixar o conceito: o DOMUS
+posiciona sua contribuição exatamente no \textit{gap} de comissionamento
+\textit{local-first} que o HA deixa aberto.
+
+\subsection{Protocolos de dispositivos}\label{sec:protocolos}
+
+A automação residencial de baixo custo é marcada por forte heterogeneidade de
+protocolos, o que motiva o padrão \textit{Adapter} (Seção~\ref{sec:adapter}).
+Quatro famílias são relevantes ao escopo do DOMUS:
+
+\begin{itemize}
+  \item \textbf{Wi-Fi genérico Tuya:} ecossistema dominante na faixa mais barata
+        do varejo brasileiro (marcas ``white-label'', incluindo a linha Intelbras
+        Izy). O controle local usa a \textit{local\_key} por dispositivo, gerada na
+        nuvem durante o pareamento; a documentação da plataforma cobre a pilha de
+        provisionamento e os \textit{Data Points} (DPS) do protocolo (TUYA, 2025).
+        É o caminho de menor custo, porém o de comissionamento mais dependente do
+        app proprietário.
+  \item \textbf{Wi-Fi Tapo (KLAP):} a TP-Link adota, nos modelos recentes (como a
+        tomada Tapo~P110), o protocolo \textit{Key Local Authentication Protocol}
+        (KLAP) para autenticação e controle local após o \textit{setup}
+        (TP-LINK, 2024). O controle não transita pela nuvem; o \textit{setup}
+        inicial, porém, usa BLE proprietário e o app Tapo/Kasa.
+  \item \textbf{Zigbee:} rede de malha de baixa potência (IEEE~802.15.4), que exige
+        um \textit{coordinator}/\textit{dongle} no \textit{hub}. Reduz dependência
+        de Wi-Fi e de nuvem no controle, mas adiciona custo de \textit{gateway} e
+        está fora do MVP do DOMUS (fase futura).
+  \item \textbf{Matter:} padrão de interoperabilidade mantido pela Connectivity
+        Standards Alliance, com comissionamento por credencial aberta
+        (CONNECTIVITY STANDARDS ALLIANCE, 2024). É a resposta ``correta'' de longo
+        prazo ao problema de comissionamento, mas o hardware Matter ainda é
+        \textbf{caro e escasso na faixa de baixo custo no Brasil}, o que o torna
+        inviável para o público-alvo deste trabalho no horizonte do MVP.
+\end{itemize}
+
+O hardware efetivamente adquirido para validação é a lâmpada Wi-Fi/Tuya Intelbras
+EWS~410 e a tomada Wi-Fi/Tapo TP-Link P110 (Tabela~\ref{tab:protocolos}). A
+Tabela~\ref{tab:protocolos} contrasta as famílias quanto às duas dimensões que
+importam para a tese --- comissionamento e controle local.
+
+\begin{table}[H]
+  \centering
+  \caption{Protocolos de dispositivos no escopo do DOMUS: comissionamento
+           \textit{versus} controle local.}
+  \label{tab:protocolos}
+  \small
+  \begin{tabular}{@{}p{2.6cm}p{2.6cm}p{3.4cm}p{3.4cm}@{}}
+    \toprule
+    \textbf{Família} & \textbf{Exemplo (alvo)} & \textbf{Comissionamento} &
+    \textbf{Controle local} \\
+    \midrule
+    Wi-Fi Tuya      & Intelbras EWS~410 & App Smart Life + nuvem (barreira central) &
+      Sim, via \textit{local\_key} (\texttt{tuyapi}) \\
+    Wi-Fi Tapo/KLAP & TP-Link Tapo~P110 & App Tapo/Kasa + BLE no \textit{setup} &
+      Sim, sem nuvem (KLAP) \\
+    Zigbee          & [modelo a definir] & Emparelhamento por \textit{coordinator} &
+      Sim (exige \textit{dongle}); fora do MVP \\
+    Matter          & [escasso/caro no BR barato] & Credencial aberta (BLE do
+      celular) & Sim, mas hardware inviável no baixo custo \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% AÇÃO DO ALUNO: se desejar, acrescentar coluna de preço (R$) por família a partir da
+% BOM real (a coletar) — ver Seção de custos no Capítulo de Resultados.
+
+\subsection{Reconhecimento de fala}\label{sec:fala}
+
+O controle por voz do DOMUS usa reconhecimento automático de fala (\textit{Speech-to-Text},
+STT) baseado no modelo \textit{Whisper}, treinado por supervisão fraca em larga
+escala e robusto a ruído, sotaques e vocabulário variado (RADFORD et al., 2022).
+A decisão de projeto decisiva é \textbf{onde} o modelo executa: no DOMUS, o
+\textit{Whisper} roda \textbf{no próprio \textit{hub}} (no \textit{backend}, nunca
+no celular), de modo que \textbf{o áudio não é enviado à nuvem}. Essa localidade é o
+que torna o reconhecimento de fala coerente com a arquitetura \textit{local-first}
+(Seção~\ref{sec:local-first}) e com os requisitos de privacidade
+(Seção~\ref{sec:privacidade}): a captura de voz --- dado potencialmente sensível ---
+permanece na LAN do usuário.
+
+Como todo modelo de STT, o \textit{Whisper} está sujeito a erros e a
+\textbf{alucinações} em trechos de baixa razão sinal-ruído: em execução real do
+DOMUS observou-se, por exemplo, a transcrição espúria ``[Som de futebol]'' em
+segmentos sem fala. O tratamento adotado (limiar de confiança, segmentação e
+\textit{parsing} de intenção tolerante) e a análise quantitativa --- acurácia de
+intenção de 87,7\% sobre 138 comandos reais, com a taxa de erro de palavra (WER)
+ainda [a coletar] --- são reportados no
+Capítulo~\ref{cap:resultados}. Antecipa-se apenas um achado metodologicamente
+importante: a acurácia do \textit{reconhecimento/parsing} e o \textit{sucesso de
+execução} são métricas distintas, pois a segunda é dominada por falhas de hardware
+(dispositivo \textit{offline}, \textit{timeout}), não pelo modelo de fala.
+
+\subsection{Privacidade e LGPD}\label{sec:privacidade}
+
+A Lei Geral de Proteção de Dados Pessoais (LGPD, Lei n.º~13.709/2018) rege o
+tratamento de dados pessoais no Brasil e estabelece princípios de finalidade,
+necessidade, transparência e segurança, além de fundamentos legais para o
+tratamento (BRASIL, 2018). Uma casa automatizada por voz produz dados
+particularmente sensíveis: gravações de áudio, padrões de presença e rotina
+inferíveis do histórico de acionamentos e do consumo de energia.
+
+A arquitetura \textit{local-first} do DOMUS funciona como \textbf{medida técnica de
+privacidade por concepção} alinhada à LGPD: ao processar o áudio no \textit{hub} e
+manter dados e credenciais na instalação local (Seção~\ref{sec:local-first}),
+minimiza-se a coleta e a transferência de dados pessoais a terceiros --- em contraste
+com arquiteturas centradas em nuvem, nas quais áudio e telemetria trafegam para
+servidores do fabricante. Em nível de implementação, o projeto adota o princípio de
+que segredos nunca são armazenados em texto puro (a \textit{local\_key} do Tuya é
+cifrada em repouso) e de que dados são escopados por usuário. O mapeamento formal
+dos dados pessoais tratados, das bases legais aplicáveis e das medidas de segurança
+--- na forma de [tabela/relatório de conformidade] --- é [a coletar].
+
+% AÇÃO DO ALUNO: inserir tabela (dado pessoal × finalidade × base legal LGPD × medida de
+% segurança) e, se aplicável, referência a princípio de privacy-by-design.
+
+\subsection{Padrão Adapter}\label{sec:adapter}
+
+A heterogeneidade de protocolos descrita na Seção~\ref{sec:protocolos} ---
+\textit{local\_key}/DPS no Tuya, sessão KLAP no Tapo, malha no Zigbee ---
+fragmenta as APIs de controle e ameaça acoplar o núcleo do sistema a bibliotecas
+específicas e voláteis. O padrão de projeto \textbf{\textit{Adapter}} resolve esse
+problema ao converter a interface de cada dispositivo/biblioteca (por exemplo,
+\texttt{tuyapi} e \texttt{tp-link-tapo-connect}) em uma interface comum e estável ---
+no DOMUS, a interface \texttt{DeviceAdapter} --- consumida uniformemente pelos
+serviços do \textit{hub}. Assim, nenhum \textit{controller} ou serviço invoca uma
+biblioteca de IoT diretamente: toda a variabilidade de protocolo fica encapsulada
+atrás do \textit{adapter}, e um \texttt{MockAdapter} permite executar e testar o
+sistema inteiro sem hardware físico.
+
+Essa escolha tem \textit{prior art} explícito: o modelo de ``integrações'' do Home
+Assistant --- cada protocolo isolado atrás de uma interface comum, com fluxo de
+configuração próprio --- valida o \textit{adapter pattern} como forma consolidada de
+absorver a fragmentação de protocolos em automação residencial (HOME ASSISTANT, 2025).
+O DOMUS reusa esse padrão de arquitetura na camada de \textit{controle} e concentra
+sua contribuição na camada de \textit{comissionamento} (Seção~\ref{sec:comissionamento-controle}).
+A instanciação concreta da interface \texttt{DeviceAdapter} e de seus
+\textit{adapters} é detalhada no Capítulo~\ref{cap:desenvolvimento}.

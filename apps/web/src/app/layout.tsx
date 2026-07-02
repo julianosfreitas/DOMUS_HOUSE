@@ -1,7 +1,22 @@
 import type { Metadata, Viewport } from 'next';
+import localFont from 'next/font/local';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { ServiceWorkerRegister } from '@/components/sw-register';
+
+// Wordmark DOMUS + títulos (display condensada, imponente).
+const romario = localFont({
+  src: './fonts/Romario-Demo.ttf',
+  variable: '--font-romario',
+  display: 'swap',
+});
+// Dingbat de ícones brasileiros (tucano, bandeira, café, carnaval…) usado como
+// acento decorativo. `block` evita mostrar a letra crua antes da fonte carregar.
+const brasil = localFont({
+  src: './fonts/BrasilIcons.otf',
+  variable: '--font-brasil',
+  display: 'block',
+});
 
 export const metadata: Metadata = {
   title: 'DOMUS — Casa Inteligente',
@@ -25,7 +40,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning className={`${romario.variable} ${brasil.variable}`}>
       <body>
         <Providers>{children}</Providers>
         <ServiceWorkerRegister />

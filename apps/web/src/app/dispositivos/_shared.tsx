@@ -5,7 +5,7 @@
    aqui para zero duplicação após a separação das abas. */
 import * as React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Lightbulb, Mic, Plug, Power, PowerOff, Trash2, Wifi } from 'lucide-react';
+import { Lightbulb, Mic, Plug, Power, PowerOff, RefreshCw, Trash2, Wifi } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -41,37 +41,62 @@ export function DeviceRow({
   onRemove: () => void;
 }) {
   const Icon = device.type === 'PLUG' ? Plug : Lightbulb;
+  const meta = [PROTOCOL_LABEL[device.protocol] ?? device.protocol, TYPE_LABEL[device.type]];
   return (
-    <Card>
-      <CardContent className="flex flex-wrap items-center gap-3 py-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-          <Icon className="h-5 w-5" />
+    <Card className="transition-colors hover:border-foreground/15">
+      <CardContent className="flex flex-col gap-4 p-4 sm:p-5">
+        {/* Cabeçalho: ícone · nome/meta · status */}
+        <div className="flex items-start gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-secondary">
+            <Icon className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium tracking-tight">{device.name}</p>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+              {meta.map((m, i) => (
+                <React.Fragment key={m}>
+                  {i > 0 && <span aria-hidden>·</span>}
+                  <span>{m}</span>
+                </React.Fragment>
+              ))}
+              {device.ip && (
+                <>
+                  <span aria-hidden>·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <Wifi className="h-3 w-3" />
+                    {device.ip}
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
+          <StatusBadge status={device.status} />
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{device.name}</p>
-          <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-            <span className="rounded bg-secondary px-1.5 py-0.5">
-              {PROTOCOL_LABEL[device.protocol] ?? device.protocol}
-            </span>
-            <span>{TYPE_LABEL[device.type]}</span>
-            {device.ip && (
-              <span className="inline-flex items-center gap-1">
-                <Wifi className="h-3 w-3" />
-                {device.ip}
-              </span>
-            )}
-          </p>
-        </div>
-        <StatusBadge status={device.status} />
-        <DeviceCommands device={device} />
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onTest} disabled={testing}>
-            <Power className="mr-1 h-4 w-4" />
-            {testing ? 'Testando…' : 'Testar'}
-          </Button>
-          <Button variant="outline" size="icon" onClick={onRemove} aria-label="Remover">
-            <Trash2 className="h-4 w-4" />
-          </Button>
+
+        {/* Ações: energia (primária, à esquerda) · utilitárias (discretas, à direita) */}
+        <div className="flex flex-wrap items-center gap-2">
+          <DeviceCommands device={device} />
+          <div className="ml-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onTest}
+              disabled={testing}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <RefreshCw className={cn('mr-1 h-4 w-4', testing && 'animate-spin')} />
+              {testing ? 'Testando…' : 'Testar'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onRemove}
+              aria-label="Remover"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <NicknameEditor device={device} />
@@ -103,13 +128,14 @@ function NicknameEditor({ device }: { device: Device }) {
   const dirty = value.trim() !== (device.nickname ?? '');
 
   return (
-    <div className="flex w-full items-center gap-2 border-t pt-3">
+    <div className="flex w-full items-center gap-2 border-t border-border/60 pt-3">
       <label
         htmlFor={`nick-${device.id}`}
         className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
       >
         <Mic className="h-3.5 w-3.5" />
-        Apelido de voz
+        <span className="sm:hidden">Apelido</span>
+        <span className="hidden sm:inline">Apelido de voz</span>
       </label>
       <input
         id={`nick-${device.id}`}
@@ -144,23 +170,25 @@ function DeviceCommands({ device }: { device: Device }) {
   });
   const on = device.lastState?.on ?? false;
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full gap-2 sm:w-auto">
       <Button
         size="sm"
+        className="flex-1 sm:flex-none"
         variant={on ? 'default' : 'outline'}
         disabled={mutation.isPending}
         onClick={() => mutation.mutate('turnOn')}
       >
-        <Power className={cn('mr-1 h-3.5 w-3.5', !on && 'text-chart-2')} />
+        <Power className={cn('mr-1 h-4 w-4', !on && 'text-chart-2')} />
         Ligar
       </Button>
       <Button
         size="sm"
+        className="flex-1 sm:flex-none"
         variant="outline"
         disabled={mutation.isPending}
         onClick={() => mutation.mutate('turnOff')}
       >
-        <PowerOff className="mr-1 h-3.5 w-3.5" />
+        <PowerOff className="mr-1 h-4 w-4" />
         Desligar
       </Button>
     </div>
@@ -175,7 +203,7 @@ export function StatusBadge({ status }: { status: Device['status'] }) {
   } as const;
   const s = map[status];
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+    <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
       <span className={`h-2 w-2 rounded-full ${s.dot}`} />
       {s.label}
     </span>

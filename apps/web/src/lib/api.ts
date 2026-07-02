@@ -159,8 +159,16 @@ export const api = {
     actions: AutomationAction[];
   }) => request<Automation>('/automations', { method: 'POST', body: JSON.stringify(payload) }),
 
-  updateAutomation: (id: string, payload: Partial<{ enabled: boolean; name: string }>) =>
-    request<Automation>(`/automations/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  updateAutomation: (
+    id: string,
+    payload: Partial<{
+      enabled: boolean;
+      name: string;
+      triggerType: 'SCHEDULE' | 'MANUAL';
+      triggerConfig: { time?: string; weekdays?: number[] };
+      actions: AutomationAction[];
+    }>,
+  ) => request<Automation>(`/automations/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
 
   deleteAutomation: (id: string) =>
     request<{ ok: true }>(`/automations/${id}`, { method: 'DELETE' }),
@@ -172,6 +180,11 @@ export const api = {
 
   createScene: (payload: { name: string; icon?: string; actions: AutomationAction[] }) =>
     request<Scene>('/scenes', { method: 'POST', body: JSON.stringify(payload) }),
+
+  updateScene: (
+    id: string,
+    payload: Partial<{ name: string; icon: string; actions: AutomationAction[] }>,
+  ) => request<Scene>(`/scenes/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
 
   deleteScene: (id: string) => request<{ ok: true }>(`/scenes/${id}`, { method: 'DELETE' }),
 

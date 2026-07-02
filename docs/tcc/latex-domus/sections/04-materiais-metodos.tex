@@ -1,0 +1,295 @@
+%======================= MATERIAIS E MÉTODOS =======================
+% Capítulo 4 — descreve a classificação metodológica, o hardware-alvo, a stack
+% de ferramentas e, sobretudo, o PROTOCOLO DE AVALIAÇÃO (quatro métricas
+% separadas + SUS + energia + BOM). Os resultados numéricos consolidados vão no
+% Capítulo \ref{cap:resultados}; aqui citam-se apenas os valores de um piloto
+% que JUSTIFICAM as escolhas de instrumentação.
+\section{Materiais e métodos}\label{cap:metodos}
+
+Este capítulo descreve como a prova de conceito (PoC) do DOMUS foi construída e,
+principalmente, como ela é avaliada. A ênfase recai sobre o protocolo de avaliação:
+para um trabalho cuja tese é que a democratização da automação residencial depende
+mais da redução da barreira de comissionamento do que do preço do hardware, é o
+método de medição --- e não a mera demonstração de funcionamento --- que sustenta ou
+refuta a hipótese. A apresentação segue a NBR~14724 (ABNT, 2011) quanto à estrutura
+do trabalho acadêmico.
+
+\subsection{Classificação da pesquisa}\label{sec:classificacao}
+
+Quanto à natureza, esta é uma \textbf{pesquisa aplicada}: parte de um problema concreto
+--- famílias brasileiras que possuem hardware barato de automação, mas não conseguem
+transformá-lo em automação utilizável --- e produz um artefato que endereça esse
+problema. Quanto ao objetivo, caracteriza-se como \textbf{desenvolvimento de uma prova
+de conceito (PoC)}: o produto é um sistema executável, o \textit{hub} DOMUS, cuja função
+é evidenciar a viabilidade técnica do controle local por voz em português sem
+dependência permanente de nuvem, e não um produto comercial acabado.
+
+Metodologicamente, o desenvolvimento é \textbf{orientado a especificações}: cada
+integração de dispositivo parte da leitura da documentação e do protocolo real do
+fabricante (TP-LINK, 2024; TUYA, 2025) antes da escrita de código, evitando suposições
+sobre APIs de IoT que mudam entre versões. Como estratégia central de projeto contra a
+\textbf{fragmentação de protocolos} --- cada fabricante expõe um protocolo, um formato de
+autenticação e um vocabulário de comandos distintos ---, adota-se o \textbf{padrão de
+projeto \textit{Adapter}}. Nenhum controlador ou serviço de aplicação invoca as
+bibliotecas de IoT diretamente; toda comunicação atravessa uma interface única
+(\texttt{DeviceAdapter}), de modo que a heterogeneidade de Tuya e Tapo fique confinada a
+implementações concretas e intercambiáveis. Essa decisão também viabiliza o \textbf{modo
+MOCK}, no qual o sistema inteiro executa sem hardware físico, requisito para testes
+automatizados reprodutíveis e para a integração contínua.
+
+\subsection{Hardware-alvo}\label{sec:hardware}
+
+O hardware-alvo foi selecionado para ser representativo do que uma família brasileira
+compra em varejo popular: dispositivos Wi-Fi de 2,4~GHz, sem \textit{hub} proprietário
+dedicado, de dois ecossistemas dominantes e de protocolos deliberadamente distintos, a
+fim de exercitar o padrão \textit{Adapter} sob fragmentação real. A lâmpada Intelbras
+pertence à linha Izy, que é \textit{white-label} do ecossistema Tuya e, portanto,
+coberta pela mesma pilha de protocolo (TUYA, 2025); a tomada TP-Link Tapo utiliza o
+protocolo proprietário KLAP (\textit{Key Local Authentication Protocol}). A
+Tabela~\ref{tab:hardware} resume os dispositivos e a meta de custo total do arranjo,
+fixada em menos de R\$~200 em hardware.
+
+\begin{table}[H]
+\centering
+\caption{Hardware-alvo da prova de conceito e capacidades expostas.}
+\label{tab:hardware}
+\small
+\begin{tabular}{@{}p{2.9cm}p{2.4cm}p{2.6cm}p{4.0cm}@{}}
+\toprule
+\textbf{Dispositivo} & \textbf{Modelo} & \textbf{Interface / protocolo} & \textbf{Capacidades expostas} \\
+\midrule
+Lâmpada LED & Intelbras EWS~410 & Wi-Fi 2,4~GHz / Tuya & liga/desliga, brilho, cor RGB \\
+Tomada inteligente & TP-Link Tapo~P110 & Wi-Fi 2,4~GHz / KLAP & liga/desliga, medição de energia (W, kWh) \\
+\midrule
+\multicolumn{4}{@{}l}{\textit{Meta de custo do arranjo: total de hardware $<$ R\$~200,00 (verificado na BOM datada, Tab.~\ref{tab:bom}).}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A escolha desses dois dispositivos não é arbitrária quanto à validação da tese. A tomada
+Tapo~P110 permite exercitar o \textbf{caminho feliz} do controle local: seu protocolo
+KLAP é acessível na LAN após uma autenticação local, e a medição de energia fornece um
+sinal físico verificável de que um comando surtiu efeito. Já a lâmpada EWS~410 expõe a
+\textbf{barreira de comissionamento} sob estudo: o pareamento inicial exige uma conta em
+aplicativo proprietário e a obtenção de uma chave local (\texttt{local\_key}) via nuvem,
+etapa que se mostrou, empiricamente, um ponto de bloqueio (Seção~\ref{sec:ambiente}).
+
+\subsection{Ferramentas e tecnologias}\label{sec:ferramentas}
+
+O \textit{hub} DOMUS é implementado em \textbf{Node.js~20~LTS} com \textbf{TypeScript} e
+o \textit{framework} \textbf{NestJS}, cuja arquitetura modular por injeção de dependência
+favorece o isolamento dos \textit{adapters}. A persistência usa \textbf{Prisma} sobre
+\textbf{PostgreSQL}, e a comunicação em tempo real entre \textit{hub} e clientes usa
+\textbf{Socket.IO} (WebSocket), de modo que mudanças de estado dos dispositivos sejam
+refletidas na interface sem \textit{polling}. A interface de usuário é um
+\textbf{\textit{Progressive Web App} (PWA)} construído em \textbf{Next.js~15} com
+React~19, instalável no celular (\textit{Add to Home Screen}), o que dispensa publicação
+em lojas de aplicativos e reforça a proposta \textit{local-first} (KLEPPMANN \textit{et
+al.}, 2019).
+
+O reconhecimento de fala (\textit{Speech-to-Text}, STT) usa o modelo \textbf{Whisper}
+(RADFORD \textit{et al.}, 2022) executado \textbf{no próprio \textit{hub}} --- nunca no
+celular e nunca na nuvem ---, decisão que é ao mesmo tempo de desempenho e de
+privacidade. A integração com os dispositivos usa as bibliotecas \textbf{\texttt{tuyapi}}
+(ecossistema Tuya/Intelbras) e \textbf{\texttt{tp-link-tapo-connect}} (Tapo), ambas
+encapsuladas atrás da interface \texttt{DeviceAdapter}. A Tabela~\ref{tab:stack} consolida
+as tecnologias por camada e sua função na PoC.
+
+\begin{table}[H]
+\centering
+\caption{Ferramentas e tecnologias por camada.}
+\label{tab:stack}
+\small
+\begin{tabular}{@{}p{3.0cm}p{5.0cm}p{4.2cm}@{}}
+\toprule
+\textbf{Camada} & \textbf{Tecnologia} & \textbf{Função na PoC} \\
+\midrule
+\textit{Hub}/backend & Node.js~20, TypeScript, NestJS & orquestração, regras, API \\
+Persistência & Prisma + PostgreSQL & dispositivos, comandos, energia \\
+Tempo real & Socket.IO (WebSocket) & estado ao vivo na interface \\
+Interface & Next.js~15 + React~19 (PWA) & \textit{dashboard}, rotinas, voz \\
+Voz (STT) & Whisper (no \textit{hub}) & transcrição de comandos pt-BR \\
+IoT (\textit{adapters}) & \texttt{tuyapi}, \texttt{tp-link-tapo-connect} & controle local de Tuya e Tapo \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% Versões exatas conferem com apps/api/package.json: NestJS 11, Prisma 6,
+% socket.io 4.8, tuyapi 7.7, tp-link-tapo-connect 2.0.15, nodejs-whisper 0.3.
+
+\subsection{Protocolo de avaliação}\label{sec:protocolo}
+
+A avaliação separa deliberadamente aquilo que a literatura de assistentes de voz
+frequentemente confunde num único número. Uma única ``taxa de acerto'' agregada esconde
+onde uma cadeia voz~$\rightarrow$~ação falha: se o erro está na transcrição, na
+interpretação da intenção ou na execução física no dispositivo. Por isso, definem-se
+\textbf{quatro métricas independentes} e três instrumentos complementares (SUS, energia e
+BOM). A necessidade dessa separação é empiricamente motivada: em uma execução-piloto com
+138 comandos reais, a acurácia de \emph{intenção} foi de 87,7\%, enquanto o sucesso de
+\emph{execução} ponta-a-ponta foi de apenas 66,7\% --- diferença dominada por hardware
+\textit{offline} no momento do comando, e não por falha do interpretador. Medir os dois
+como um só número teria atribuído ao \textit{software} de linguagem uma falha que é do
+dispositivo.
+
+\subsubsection{Métrica 1 --- WER (taxa de erro de palavra)}
+
+Avalia isoladamente a camada de transcrição do Whisper. Calcula-se a
+\textit{Word Error Rate} pela razão entre edições e o total de palavras de referência:
+\[
+\mathrm{WER} = \frac{S + D + I}{N},
+\]
+em que $S$, $D$ e $I$ são, respectivamente, substituições, remoções e inserções em
+relação à transcrição de referência, e $N$ é o número de palavras da referência. O
+\textbf{corpus de avaliação} conterá \textbf{no mínimo 50 enunciados} de comando,
+gravados por \textbf{ao menos 3 falantes} distintos, contemplando variação de sotaque e
+formas coloquiais (por exemplo, ``desligua a luz'' além de ``desligar a luz''). Além do
+WER agregado, produz-se uma \textbf{matriz de confusão} de comandos foneticamente
+próximos, para identificar substituições sistemáticas (por exemplo, confusão entre
+``ligar'' e ``desligar'' quando o áudio é curto). Registram-se também \textbf{alucinações}
+do modelo --- transcrições plausíveis, mas sem fala correspondente ---, como o caso
+observado em piloto em que ruído ambiente foi transcrito como ``[Som de futebol]''.
+% A COLETAR: valor de WER agregado + matriz de confusão. Meta a definir após piloto.
+O valor consolidado de WER é reportado no Capítulo~\ref{cap:resultados}; até o
+fechamento deste texto permanece [a coletar].
+
+\subsubsection{Métrica 2 --- acurácia de intenção}
+
+Mede a camada de interpretação (\textit{parser}), isto é, se o texto transcrito foi
+mapeado para a intenção correta (dispositivo + ação + parâmetros), \emph{independentemente}
+de o dispositivo ter executado. Define-se como a razão entre comandos com intenção
+corretamente classificada e o total de comandos, registrada na tabela
+\texttt{voice\_commands} do banco. A \textbf{meta de projeto é $\geq 88\%$}; o piloto de
+138 comandos já atingiu \textbf{87,7\%}, valor que baliza o parser e delimita o esforço
+restante.
+
+\subsubsection{Métrica 3 --- sucesso de execução ponta-a-ponta}
+
+Mede a cadeia completa: um comando falado é bem-sucedido apenas se o dispositivo físico
+atinge o estado pretendido, verificado por leitura de estado (para a tomada, confirmação
+via medição de energia). É, portanto, a métrica mais severa e a que mais depende de
+fatores fora do \textit{software} de linguagem. No piloto, o sucesso foi de
+\textbf{66,7\%}, \textbf{dominado por dispositivos \textit{offline}} no instante do
+comando (e não por erro de \textit{parsing}) --- distinção que só a separação em relação
+à Métrica~2 torna visível. Falhas são categorizadas por causa (dispositivo \textit{offline},
+\textit{timeout} de rede, erro de intenção) para diagnóstico.
+
+\subsubsection{Métrica 4 --- latência voz$\rightarrow$execução (p50/p95)}
+
+Mede o tempo entre o fim do enunciado e a confirmação de execução, reportado por
+\textbf{percentis} (p50 e p95) em vez de média, por a distribuição ser assimétrica e de
+cauda longa. O campo \texttt{latencyMs} é gravado por comando. No piloto, obteve-se
+\textbf{p50~$=$~463~ms} e \textbf{p95~$=$~2140~ms}, com um \textit{outlier} máximo de
+\textbf{12,3~s} atribuído a \textit{timeout} de hardware (dispositivo lento a responder),
+e não a lentidão do \textit{hub}. Como referência de controle puramente local, medições
+diretas da tomada Tapo~P110 via KLAP situaram-se entre \textbf{201 e 332~ms}, o que
+estabelece o piso de latência da camada de dispositivo.
+
+\begin{table}[H]
+\centering
+\caption{Resumo das quatro métricas do \textit{pipeline} de voz.}
+\label{tab:metricas}
+\small
+\begin{tabular}{@{}p{0.5cm}p{3.0cm}p{4.4cm}p{3.4cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Métrica} & \textbf{Definição / instrumento} & \textbf{Piloto / meta} \\
+\midrule
+1 & WER & $(S{+}D{+}I)/N$; corpus $\geq$50 enunciados, $\geq$3 falantes, matriz de confusão & [a coletar] \\
+2 & Acurácia de intenção & intenções corretas $/$ total; tabela \texttt{voice\_commands} & 87,7\% (meta $\geq$88\%) \\
+3 & Sucesso de execução & estado físico atingido $/$ total; leitura de estado & 66,7\% \\
+4 & Latência voz$\to$exec. & percentis de \texttt{latencyMs} & p50~463~ms; p95~2140~ms \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Usabilidade (SUS)}
+
+A usabilidade percebida é medida pelo questionário \textit{System Usability Scale} (SUS),
+de 10 itens em escala Likert de cinco pontos, aplicado a \textbf{$n = 3$ a $5$
+participantes} após uma sessão guiada. Dada a natureza de PoC e o $n$ reduzido, os
+resultados de SUS são tratados como \textbf{indicativos qualitativos}, não como inferência
+estatística. Cada participante executa o \textbf{roteiro de 5 tarefas} da
+Tabela~\ref{tab:sus}, representativo do ciclo de uso doméstico, do comissionamento ao
+acompanhamento de consumo. % Se o roteiro incorporar elementos de engajamento/onboarding, DETERDING et al. (2011) pode ser citado aqui.
+
+\begin{table}[H]
+\centering
+\caption{Roteiro de 5 tarefas para a avaliação de usabilidade (SUS).}
+\label{tab:sus}
+\small
+\begin{tabular}{@{}p{0.6cm}p{12.4cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Tarefa} \\
+\midrule
+T1 & Instalar o PWA no celular (\textit{Add to Home Screen}) e autenticar-se. \\
+T2 & Adicionar/parear um dispositivo descoberto na rede local. \\
+T3 & Ligar e desligar a lâmpada por comando de voz em português. \\
+T4 & Criar uma automação por horário (ex.: desligar a tomada às 23h). \\
+T5 & Consultar o consumo de energia da tomada no \textit{dashboard}. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Consumo de energia (antes/depois)}
+
+Aproveitando a medição nativa da tomada Tapo~P110, registra-se o consumo (W instantâneo e
+kWh acumulado) de uma carga controlada \textbf{antes} e \textbf{depois} da introdução de
+uma automação (por exemplo, desligamento programado de um dispositivo em \textit{standby}),
+na tabela \texttt{energy\_readings}. O objetivo é evidenciar o benefício prático da
+automação, não uma medição metrológica de precisão. % A COLETAR: leituras W/kWh antes e depois; janela de observação de [...] dias.
+
+\subsubsection{Custo (BOM datada)}
+
+O custo total do hardware é documentado em uma \textbf{\textit{Bill of Materials} (BOM)
+datada} --- Tabela~\ref{tab:bom} ---, pois preços de varejo variam no tempo; a data de
+coleta é parte do dado. A BOM verifica a meta de custo ($<$ R\$~200); estimativas
+correntes situam o arranjo em torno de R\$~130, a confirmar na coleta final.
+
+\begin{table}[H]
+\centering
+\caption{BOM datada do hardware-alvo (a coletar).}
+\label{tab:bom}
+\small
+\begin{tabular}{@{}p{4.2cm}p{1.4cm}p{2.4cm}p{2.4cm}p{2.0cm}@{}}
+\toprule
+\textbf{Item} & \textbf{Qtd.} & \textbf{Preço unit. (R\$)} & \textbf{Fonte/loja} & \textbf{Data} \\
+\midrule
+Intelbras EWS~410 & 1 & [...] & [...] & [dd/mm/aaaa] \\
+TP-Link Tapo~P110 & 1 & [...] & [...] & [dd/mm/aaaa] \\
+\midrule
+\multicolumn{4}{@{}l}{\textbf{Total (meta $<$ R\$~200,00)}} & \textbf{[...]} \\
+\bottomrule
+\end{tabular}
+\end{table}
+% A COLETAR: preencher preços, lojas e datas reais de compra. Confirmar total < R$200.
+
+\paragraph{Modo de avaliação e proteção de dados.}
+Em operação normal, o DOMUS \textbf{não persiste áudio} de voz nem transcrições, em
+coerência com o princípio de minimização de dados. Para computar WER e acurácia de
+intenção, entretanto, é necessário reter transcrições comparáveis à referência. Isso é
+feito por meio de um \textbf{``modo de avaliação''} explícito, ativado apenas durante as
+sessões de coleta, no qual as \textbf{transcrições em texto} (não o áudio bruto) são
+retidas \textbf{temporariamente} e apagadas após a análise. A ativação é precedida de
+\textbf{consentimento informado} dos participantes, com finalidade, prazo de retenção e
+procedimento de descarte declarados, em conformidade com a Lei Geral de Proteção de Dados
+(BRASIL, 2018). Nenhum áudio é enviado à nuvem em nenhum modo de operação.
+
+\subsection{Ambiente de testes}\label{sec:ambiente}
+
+Toda a avaliação ocorre em uma \textbf{rede local (LAN)} doméstica de 2,4~GHz, sem
+qualquer trânsito de áudio para a nuvem: o \textit{hub} DOMUS, os dispositivos e o celular
+com o PWA residem no mesmo segmento de rede, e o reconhecimento de fala executa no
+\textit{hub}. Essa topologia é a própria condição experimental da tese \textit{local-first}
+(KLEPPMANN \textit{et al.}, 2019): mede-se o sistema sob a hipótese de operação sem nuvem.
+% A COLETAR: especificar o hardware do hub (ex.: mini-PC/SBC, CPU, RAM) e o roteador.
+
+Registra-se aqui uma \textbf{observação de ambiente empiricamente relevante} para os
+resultados: o controle local da tomada Tapo~P110 via KLAP foi validado com sucesso
+(latências de 201--332~ms), ao passo que a lâmpada Intelbras EWS~410 apresentou
+\textbf{bloqueio no comissionamento} --- o pareamento inicial e a extração da
+\texttt{local\_key} pela via de nuvem/aplicativo não se completaram no ambiente de teste.
+Longe de ser um mero contratempo operacional, esse bloqueio constitui \textbf{evidência
+empírica direta da barreira de comissionamento} que este trabalho investiga; sua
+caracterização completa está \textbf{em validação} e é retomada no
+Capítulo~\ref{cap:resultados}. A separação entre um caminho de controle que funciona
+(Tapo) e uma barreira de entrada que trava (EWS~410) é, ela própria, um resultado do
+método aqui descrito.

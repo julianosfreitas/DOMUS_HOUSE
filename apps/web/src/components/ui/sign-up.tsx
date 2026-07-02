@@ -352,7 +352,7 @@ interface AuthComponentProps {
 }
 
 const DefaultLogo = () => (
-  <Image src="/brand/domus-emblem.png" alt="DOMUS" width={30} height={38} priority className="h-9 w-auto" />
+  <Image src="/brand/domus-mark.png" alt="DOMUS" width={44} height={44} priority className="h-11 w-11 object-contain" />
 );
 
 export const AuthComponent = ({ logo = <DefaultLogo />, brandName = 'DOMUS' }: AuthComponentProps) => {
@@ -596,7 +596,7 @@ export const AuthComponent = ({ logo = <DefaultLogo />, brandName = 'DOMUS' }: A
         <fieldset disabled={modalStatus !== 'closed'} className="relative z-10 flex flex-col items-center gap-8 w-[300px] mx-auto p-4">
           {/* Logotipo DOMUS + slogan */}
           <div className="flex flex-col items-center gap-1">
-            <Image src="/brand/domus-logo.png" alt="DOMUS" width={150} height={190} priority className="h-24 w-auto" />
+            <Image src="/brand/domus-logo.png" alt="DOMUS" width={200} height={254} priority className="h-32 w-auto" />
             <span className="text-[11px] italic text-muted-foreground">A nuvem, uma vez. A casa, para sempre.</span>
           </div>
           {/* Títulos por passo */}

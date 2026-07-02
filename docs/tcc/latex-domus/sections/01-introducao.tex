@@ -1,0 +1,196 @@
+%========================================================================
+% CAPÍTULO 1 — INTRODUÇÃO
+% Incluído por \input em main.tex. NÃO adicionar preâmbulo nem \begin{document}.
+% Citações: só o conjunto canônico definido em sections/referencias.tex.
+%========================================================================
+\section{Introdução}\label{cap:intro}
+
+A automação residencial deixou de ser um artigo de luxo e tornou-se um produto de
+prateleira: no Brasil, uma lâmpada ou uma tomada Wi-Fi genérica --- em geral
+construídas sobre a plataforma \textit{Tuya} --- custam entre R\$~30 e R\$~60 no
+varejo. O mercado nacional de \textit{smart home} foi estimado em cerca de
+US\$~2,7~bilhões em 2024, com projeção de crescimento próximo a 10\%~ao~ano até 2033
+(IMARC, 2025), e a expansão brasileira, da ordem de 30\%~ao~ano, supera com folga a
+média global de aproximadamente 12\%~ao~ano (IDC, 2024). O barateamento do hardware,
+portanto, já ocorreu. Ainda assim, transformar esse hardware barato em automação
+efetivamente utilizável permanece fora do alcance do domicílio típico brasileiro.
+
+Os indicadores de adoção evidenciam a distância entre a disponibilidade do produto e
+seu uso real. A proporção de domicílios brasileiros com ao menos um dispositivo
+inteligente passou de 14,3\% em 2022 para 16,4\% em 2024 (IBGE, 2024), patamar muito
+inferior aos cerca de 44\% observados nos Estados Unidos e no Reino Unido e à média
+mundial de aproximadamente 33\% (STATISTA, 2023). A adoção nacional é, além de baixa,
+profundamente desigual: 17,1\% nos domicílios urbanos contra 7,5\% nos rurais, e
+19,8\% na região Sul contra 11,2\% no Nordeste (IBGE, 2024). A
+Tabela~\ref{tab:penetracao} sintetiza esses recortes.
+
+\begin{table}[H]
+\centering
+\caption{Penetração de dispositivos residenciais inteligentes: Brasil (recortes) e
+referências internacionais.}
+\label{tab:penetracao}
+\begin{tabular}{@{}lcl@{}}
+\toprule
+\textbf{Recorte} & \textbf{Penetração (\%)} & \textbf{Fonte} \\
+\midrule
+Brasil --- domicílios (2022)     & 14,3        & IBGE, 2024 \\
+Brasil --- domicílios (2024)     & 16,4        & IBGE, 2024 \\
+Brasil --- área urbana           & 17,1        & IBGE, 2024 \\
+Brasil --- área rural            & 7,5         & IBGE, 2024 \\
+Brasil --- região Sul            & 19,8        & IBGE, 2024 \\
+Brasil --- região Nordeste       & 11,2        & IBGE, 2024 \\
+Estados Unidos / Reino Unido     & $\approx$44 & STATISTA, 2023 \\
+Média mundial                    & $\approx$33 & STATISTA, 2023 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Essa desigualdade não se explica por preço de compra, e sim por barreiras que se
+acumulam depois da aquisição. A primeira é a conectividade: apenas 22\% dos
+domicílios brasileiros dispõem de uma conexão à internet considerada satisfatória,
+disparidade que se aprofunda por renda --- 73\% na classe A contra 3\% nas classes
+D e~E (CETIC.br, 2024). Como a maioria dos dispositivos comerciais depende de
+servidores do fabricante para funcionar, a casa ``inteligente'' deixa de operar
+justamente onde a conectividade é mais precária. A segunda é demográfica: o Brasil
+envelhece --- a parcela da população com 65 anos ou mais alcançou 10,9\% em 2022
+(IBGE, 2024) --- e os idosos, que estão entre os que mais se beneficiariam de
+interfaces por voz, são também os menos familiarizados com o letramento digital que a
+instalação desses produtos exige. A terceira é a privacidade: o modelo comercial
+dominante transmite continuamente áudio e hábitos domésticos a terceiros, o que
+tensiona os princípios de minimização e finalidade da Lei Geral de Proteção de Dados
+--- LGPD (BRASIL, 2018).
+
+Convém, desde já, delimitar o que \textit{não} é o problema deste trabalho. O custo de
+compra do dispositivo é tratado aqui como \textbf{premissa}, e não como a dor a ser
+resolvida: o hardware Wi-Fi genérico já é acessível. O obstáculo decisivo à
+democratização é outro --- é o \textbf{custo de comissionamento} (a instalação, o
+pareamento e a configuração de cada aparelho, que exigem aplicativos proprietários,
+criação de contas em nuvem e, para qualquer forma de controle local, o uso de portais
+de desenvolvedor em inglês e ferramentas de linha de comando) somado à
+\textbf{dependência estrutural de nuvem} para a operação cotidiana. É essa combinação,
+e não o preço, que separa o hardware barato da automação utilizável. O princípio
+operacional que orienta a proposta resume essa inversão de prioridades: ``nuvem uma
+vez, local para sempre''.
+
+\subsection{Problema de pesquisa}
+
+O obstáculo central à democratização da automação residencial no Brasil não é o preço
+do hardware --- já acessível ---, mas a \textbf{complexidade de instalar, conectar e
+operar} os dispositivos, agravada pela dependência de nuvem e por aplicativos
+proprietários. Cada dispositivo, ainda que barato, chega ao usuário atrelado ao
+aplicativo e à conta em nuvem de seu fabricante; o controle local, quando existe,
+depende de credenciais obtidas em portais de desenvolvedor voltados a especialistas.
+O resultado é uma barreira de letramento digital que exclui precisamente os grupos que
+mais se beneficiariam da tecnologia --- domicílios de menor renda, populações rurais e
+do Nordeste, e a população idosa em crescimento. Formula-se, assim, o problema de
+pesquisa: \textit{como tornar a automação residencial acessível a um usuário não
+técnico, preservando a privacidade e o funcionamento sem dependência permanente de
+nuvem?}
+
+\subsection{Pergunta norteadora e hipótese}
+
+Do problema deriva a seguinte \textbf{pergunta norteadora}: é viável um sistema de
+automação residencial funcional, controlável por voz em português brasileiro,
+\textit{local-first} e baseado em hardware de baixo custo, que possa ser
+\textit{comissionado} por um usuário não técnico sem o aplicativo do fabricante e sem
+portais de desenvolvedor?
+
+Diferentemente de uma alegação socioeconômica ampla e não verificável, adota-se aqui
+uma \textbf{hipótese de viabilidade falsificável dispositivo a dispositivo}, formulada
+de modo a ser confirmada ou refutada por evidência empírica de cada aparelho:
+
+\begin{quote}
+\textit{É tecnicamente viável comissionar e controlar localmente, sem aplicativo do
+fabricante e sem portais de desenvolvedor, dispositivos Wi-Fi genéricos de baixo
+custo, com comandos de voz em português brasileiro processados integralmente no
+\textit{hub}, a um custo incremental total inferior a R\$~200.}
+\end{quote}
+
+A hipótese é testada em dois dispositivos representativos do varejo brasileiro, com
+status distintos: a tomada TP-Link Tapo~P110 --- na qual a forma plena foi
+\textbf{confirmada}, com controle local demonstrado pelo protocolo KLAP a latências de
+201 a 332~ms usando credenciais de consumidor (não de desenvolvedor) --- e a lâmpada
+Intelbras/Tuya EWS~410 --- cujo comissionamento local permanece \textbf{em aberto (em
+validação)}. Registre-se, desde a introdução, que a própria dificuldade de comissionar
+a lâmpada Tuya, longe de enfraquecer o argumento, constitui \textbf{evidência empírica
+da barreira} que este trabalho investiga: se a etapa se mostra custosa até para o
+autor, a fortiori o é para o usuário não técnico. Os detalhes dessa evidência são
+apresentados no Capítulo~6.
+
+\subsection{Objetivos}
+
+\subsubsection{Objetivo geral}
+
+Demonstrar a viabilidade técnica de um \textit{hub} de automação residencial
+\textit{local-first}, de baixo custo e controlável por voz em português brasileiro,
+cujo mecanismo de comissionamento reduza a barreira de acesso do usuário não técnico.
+
+\subsubsection{Objetivos específicos}
+
+\begin{enumerate}
+  \item Projetar uma arquitetura de software que isole a heterogeneidade de protocolos
+        de dispositivos (Tuya, Tapo e outros) atrás de uma interface única, de modo a
+        permitir a extensão do sistema sem reescrita do núcleo.
+  \item Implementar o reconhecimento de fala em português brasileiro no próprio
+        \textit{hub}, sem envio de áudio à nuvem, transcrevendo o comando localmente e
+        descartando o áudio após a interpretação.
+  \item Validar experimentalmente o controle local de hardware real, medindo latência
+        (por percentis) e confiabilidade da comunicação com os dispositivos.
+  \item Investigar e caracterizar um mecanismo de comissionamento de dispositivos
+        Wi-Fi genéricos que dispense o aplicativo do fabricante e os portais de
+        desenvolvedor.
+  \item Definir e aplicar um protocolo de avaliação do artefato, contemplando custo
+        total (\textit{Bill of Materials} --- BOM), acurácia de voz (taxa de erro de
+        palavra --- WER --- e acurácia de intenção), consumo de energia e usabilidade
+        junto ao público-alvo (\textit{System Usability Scale} --- SUS).
+        % [...] A coletar: BOM datada em 2 cenários (hub reaproveitado × completo);
+        % WER sobre corpus pt-BR (>=50 enunciados, >=3 falantes); SUS com n=3-5.
+\end{enumerate}
+
+\subsection{Justificativa}
+
+A relevância deste trabalho decorre da convergência entre uma necessidade social e uma
+lacuna técnica. Do lado social, os dados apresentados evidenciam uma adoção baixa e
+desigual (IBGE, 2024; STATISTA, 2023), condicionada por conectividade precária em boa
+parte dos domicílios (CETIC.br, 2024) e por uma transição demográfica que amplia a
+população idosa (IBGE, 2024) --- público para o qual a interação por voz representa uma
+porta de entrada natural, desde que não exija letramento técnico para a instalação.
+Some-se a isso a tensão entre o modelo comercial dependente de nuvem e os princípios da
+LGPD (BRASIL, 2018), que torna desejável um arranjo em que os dados domésticos não
+saiam da residência.
+
+Do lado técnico, existem soluções maduras de controle local --- notadamente o
+\textit{Home Assistant} (HOME ASSISTANT, 2025) --- e um estado da arte de
+comissionamento padronizado no protocolo Matter (CONNECTIVITY STANDARDS ALLIANCE,
+2024). Contudo, essas soluções ou pressupõem hardware de rádio adicional e ainda caro
+ou escasso no varejo popular brasileiro (o caso do Matter), ou, no caso do
+\textit{Home Assistant} aplicado ao Wi-Fi barato, pressupõem o \textbf{pareamento
+prévio pelo aplicativo do fabricante} --- exatamente a etapa que exclui o usuário não
+técnico. A contribuição do DOMUS não está em disputar a sofisticação linguística dos
+assistentes comerciais, e sim em atacar o \textbf{comissionamento acessível e local} de
+dispositivos Wi-Fi genéricos, alinhado ao paradigma \textit{local-first} descrito por
+KLEPPMANN et al. (2019), no qual o usuário é o dono de seus dados e a nuvem é
+conveniência, não requisito. A viabilidade do processamento de voz no próprio
+\textit{hub}, sem GPU, apoia-se em modelos de reconhecimento de fala robustos como o
+\textit{Whisper} (RADFORD et al., 2022), que operam em hardware modesto. O trabalho
+adota, ainda, as diretrizes da ABNT para trabalhos acadêmicos (ABNT, 2011) na sua
+estruturação e apresentação.
+
+\subsection{Organização do trabalho}
+
+Além desta introdução, o trabalho está organizado em mais seis capítulos. O
+\textbf{Capítulo~2 --- Fundamentação teórica} revisa os conceitos de automação
+residencial e IoT, a fragmentação de protocolos, o paradigma \textit{local-first}, o
+reconhecimento de fala local, a acessibilidade e a segurança e privacidade sob a LGPD.
+O \textbf{Capítulo~3 --- Trabalhos relacionados} confronta o DOMUS com os assistentes
+comerciais dependentes de nuvem, com o \textit{Home Assistant} e com o protocolo
+Matter, delimitando o recorte da contribuição. O \textbf{Capítulo~4 --- Materiais e
+métodos} descreve a abordagem metodológica (ciência de projeto e desenvolvimento
+orientado a especificações), o padrão \textit{Adapter} como mecanismo contra a
+fragmentação, as tecnologias empregadas e os critérios e instrumentos de avaliação. O
+\textbf{Capítulo~5 --- Desenvolvimento} detalha a arquitetura e a implementação do
+\textit{hub}, do \textit{pipeline} de voz e do mecanismo de comissionamento. O
+\textbf{Capítulo~6 --- Resultados e discussão} apresenta as medições obtidas
+--- controle local do Tapo~P110, \textit{pipeline} de voz e o estado dos critérios de
+sucesso --- e discute seus limites. Por fim, o \textbf{Capítulo~7 --- Considerações
+finais} retoma a tese, expõe as limitações e aponta os trabalhos futuros.

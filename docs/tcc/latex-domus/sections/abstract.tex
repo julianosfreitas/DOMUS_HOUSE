@@ -1,0 +1,29 @@
+%======================= ABSTRACT =======================
+\newpage
+\begin{center}\textbf{ABSTRACT}\end{center}
+\addcontentsline{toc}{section}{ABSTRACT}
+\vspace{0.4cm}
+
+\noindent
+In Brazil, home automation hardware is already cheap --- generic Wi-Fi bulbs and
+plugs from the Tuya ecosystem cost between R\$~30 and R\$~60 ---, yet turning that
+hardware into usable automation remains out of reach for the typical household due to
+three chained barriers: the \textit{commissioning} cost (proprietary apps, cloud
+accounts and English-only developer portals), structural cloud dependency, and privacy
+risks. This work presents DOMUS, a proof of concept of a \textit{local-first} home
+automation hub, controllable by Brazilian Portuguese voice processed on the hub
+itself, whose thesis is that democratization depends less on hardware price and more
+on lowering the commissioning barrier (``cloud once, local forever''). The system was
+built with Node.js/NestJS and the \textit{Adapter} pattern to isolate protocol
+fragmentation, with speech recognition via \textit{Whisper} running on the hub. As
+results, local control of the TP-Link Tapo~P110 device was validated over the KLAP
+protocol (latencies of 201--332~ms) and the voice \textit{pipeline} reached 87.7\%
+intent accuracy; total cost, word error rate (WER) and usability (SUS) are reported in
+Chapter~\ref{cap:resultados}. We conclude for the technical feasibility of local
+Portuguese voice control without permanent cloud dependency; full validation of the
+commissioning barrier for Tuya devices remains ongoing work.
+
+\vspace{0.5cm}
+\noindent\textbf{Keywords:} home automation; \textit{local-first}; commissioning;
+speech recognition; privacy; Internet of Things.
+\newpage

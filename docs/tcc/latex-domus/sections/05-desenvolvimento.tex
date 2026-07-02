@@ -1,0 +1,262 @@
+%========================================================================
+% CAPÍTULO 5 — DESENVOLVIMENTO DO DOMUS
+% Semeado com o código real do repositório (apps/api). Onde faltar dado do
+% aluno, há marcador [...] com comentário orientando o que inserir.
+%========================================================================
+\section{Desenvolvimento do DOMUS}\label{cap:desenvolvimento}
+
+Este capítulo descreve a construção do DOMUS a partir do código efetivamente
+implementado, e não de um projeto idealizado. O sistema é um \emph{hub} de
+automação residencial \textit{local-first} (KLEPPMANN et al., 2019): o núcleo é
+um \emph{back end} em NestJS (Node.js~20 + TypeScript + Prisma + PostgreSQL~16)
+que fala diretamente com os dispositivos na rede local, e o aplicativo do
+usuário é um PWA em Next.js~15 instalável no celular. Por decisão histórica de
+projeto, o repositório usa o nome interno \texttt{CASAI} (visível, por exemplo,
+na variável de ambiente \texttt{CASAI\_ENCRYPTION\_KEY}); ao longo desta
+monografia o produto é referido como DOMUS.
+
+\subsection{Visão geral da arquitetura}
+
+O \emph{back end} é organizado em módulos coesos do NestJS, cada um com uma
+responsabilidade única, comunicando-se por injeção de dependência. O módulo
+\texttt{devices} concentra o controle físico e delega a comunicação com o
+\emph{hardware} à camada de \emph{adapters}; os módulos de \texttt{automations}
+e \texttt{scenes} orquestram ações sobre esses dispositivos; o módulo
+\texttt{voice} converte fala em comandos; e o módulo de \texttt{websocket}
+propaga mudanças de estado ao PWA em tempo real. A
+Tabela~\ref{tab:modulos} resume os módulos e suas responsabilidades.
+
+\begin{table}[H]
+\centering
+\caption{Módulos do \emph{back end} do DOMUS e suas responsabilidades.}
+\label{tab:modulos}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Módulo} & \textbf{Responsabilidade} \\
+\midrule
+\texttt{auth}       & Autenticação JWT e login social (Google); emissão de \textit{tokens}. \\
+\texttt{users}      & Perfil do usuário e tarifa de energia (R\$/kWh). \\
+\texttt{devices}    & Cadastro, descoberta e controle; \emph{factory} e fila de comandos. \\
+\texttt{adapters}   & Tradução do contrato único para cada protocolo (Tuya, Tapo, \textsc{Mock}). \\
+\texttt{automations}& Rotinas por horário (\emph{cron}), condições e execução de ações. \\
+\texttt{scenes}     & Cenas: listas ordenadas de ações acionadas sob demanda. \\
+\texttt{energy}     & Coleta e histórico de consumo (potência e kWh). \\
+\texttt{voice}      & Transcrição (Whisper), \emph{parser} de intenção e execução. \\
+\texttt{websocket}  & Difusão em tempo real de estado e eventos (Socket.IO). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A Figura~\ref{fig:arquitetura} apresenta a visão macro do sistema, do PWA ao
+\emph{hardware}, destacando que todo controle passa pela camada de
+\emph{adapters}.
+
+\begin{figure}[H]
+\centering
+% PLACEHOLDER: exportar o diagrama de arquitetura para figures/fig_arquitetura.(png|pdf).
+% Sugestão: PWA -> API NestJS (módulos) -> DeviceAdapterFactory -> {Tuya,Tapo,Mock} -> LAN.
+\includegraphics[width=0.9\textwidth]{fig_arquitetura}
+\caption{Arquitetura em camadas do DOMUS: PWA, \emph{back end} modular e camada de \emph{adapters} sobre a rede local.}
+\label{fig:arquitetura}
+\end{figure}
+
+\subsection{Padrão Adapter}
+
+O princípio inegociável do projeto é que \emph{nenhum} \emph{controller} ou
+serviço chama uma biblioteca de IoT diretamente: todo acesso ao \emph{hardware}
+passa pela interface \texttt{DeviceAdapter}, definida em
+\texttt{device-adapter.interface.ts}. O contrato expõe operações de ciclo de
+vida (\texttt{connect}/\texttt{disconnect}), de atuação (\texttt{turnOn},
+\texttt{turnOff}, \texttt{toggle}, \texttt{setBrightness}, \texttt{setColor},
+\texttt{setColorTemp}) e de leitura (\texttt{readState}, \texttt{readEnergy}).
+Capacidades não suportadas por um dispositivo lançam
+\texttt{NotImplementedException}; e o código distingue explicitamente duas
+falhas: \texttt{DeviceOfflineError} (o dispositivo não respondeu) e
+\texttt{DeviceCommandError} (respondeu, mas rejeitou o comando) --- distinção
+que evita marcar como ``\emph{offline}'' um aparelho que apenas recusou uma
+credencial.
+
+Uma \emph{factory} (\texttt{DeviceAdapterFactory}) escolhe a implementação
+concreta pelo campo \texttt{protocol} do dispositivo e monta o
+\texttt{AdapterContext}, descriptografando os segredos apenas nesse instante e
+em memória. As implementações concretas são:
+
+\begin{itemize}
+  \item \textbf{TuyaAdapter} --- usa a biblioteca \texttt{tuyapi} sobre TCP na
+    porta 6668. Mantém uma conexão persistente (o dispositivo aceita apenas uma
+    conexão local por vez) e mapeia as capacidades para os \emph{data points}
+    (DPS) do protocolo, com conversões de escala e de espaço de cor
+    (Tabela~\ref{tab:dps}). Toda chamada de rede é limitada a 5~s (TUYA, 2025).
+  \item \textbf{TapoAdapter} --- usa \texttt{tp-link-tapo-connect} com
+    \emph{re-login} automático em caso de sessão expirada. Converte as unidades
+    cruas de energia da tomada P110 (potência em mW; energia em Wh) para W e
+    kWh, e retorna \texttt{null} em leitura não confiável para não distorcer as
+    médias do painel (TP-LINK, 2024).
+  \item \textbf{MockAdapter} --- simula um dispositivo em memória. É de uso
+    obrigatório: o sistema inteiro roda e é testado sem \emph{hardware}, o que
+    desacopla o desenvolvimento da disponibilidade física dos aparelhos.
+\end{itemize}
+
+Além desses, o repositório declara dois \emph{adapters} aditivos ---
+\texttt{TuyaCloudAdapter} (Tuya Open API) e \texttt{HomeAssistantAdapter} (REST
+de uma instância existente) --- que validam a extensibilidade do padrão sem
+alterar o núcleo. A Tabela~\ref{tab:adapters} sintetiza os protocolos e sua
+situação de maturidade.
+
+\begin{table}[H]
+\centering
+\caption{Protocolos suportados pela camada de \emph{adapters}.}
+\label{tab:adapters}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Protocolo} & \textbf{Biblioteca} & \textbf{Transporte} & \textbf{Situação} \\
+\midrule
+\textsc{Tapo}  & \texttt{tp-link-tapo-connect} & LAN (KLAP)      & Controle local pleno \\
+\textsc{Tuya}  & \texttt{tuyapi}               & LAN (TCP 6668)  & Comissionamento em validação \\
+\textsc{Mock}  & ---                           & memória         & Pleno (testes e \emph{demo}) \\
+Tuya Cloud     & Tuya Open API                 & nuvem           & Aditivo (valida sem \emph{hardware}) \\
+Home Assistant & REST API + \emph{token}       & instância HA    & Aditivo (integração) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Mapeamento de capacidades para \emph{data points} (DPS) Tuya no \texttt{TuyaAdapter}.}
+\label{tab:dps}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Capacidade} & \textbf{DPS} & \textbf{Faixa Tuya} & \textbf{Faixa DOMUS} \\
+\midrule
+Liga/desliga      & 20 & booleano        & \texttt{on}/\texttt{off} \\
+Brilho            & 22 & 10--1000        & 0--100 (\%) \\
+Temperatura de cor& 23 & 0--1000         & 2700--6500~K \\
+Cor               & 24 & HSV \emph{hex}  & \texttt{\#RRGGBB} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Pipeline de voz}
+
+O controle por voz segue uma cadeia de responsabilidades bem delimitada. O PWA
+captura o áudio no celular (WebM/Opus, limitado a 5~MB, \textasciitilde3~s) e o
+envia por \texttt{POST /voice/command} --- podendo alternativamente enviar texto
+puro. No \emph{hub}, o áudio é transcrito por Whisper rodando localmente
+(RADFORD et al., 2022): a implementação \texttt{WhisperSttService} usa
+\texttt{nodejs-whisper} (\emph{bindings} de \texttt{whisper.cpp} em CPU), grava um
+arquivo temporário apenas para a transcrição e o apaga em seguida, sem jamais
+persistir o áudio (BRASIL, 2018). A transcrição alimenta o
+\texttt{VoiceCommandParser}, que normaliza o texto (\emph{lowercase}, remoção de
+acentos), detecta a intenção (ligar, desligar, alternar, ajustar brilho ou cor)
+e casa o dispositivo por similaridade tolerante a erros de reconhecimento ---
+usando distância de edição Damerau-Levenshtein e um esquema de pesos em que o
+\emph{nome/apelido} do aparelho pesa mais que o cômodo e a palavra de tipo
+(``tomada'', ``luz'') funciona como \emph{slot} que prioriza aparelhos daquele
+tipo, à maneira de assistentes comerciais.
+
+Se a confiança supera o limiar (0{,}6), o \texttt{VoiceService} chama
+\texttt{executeCommand}, que entra na fila serializada por dispositivo
+(\texttt{DeviceCommandQueue}): comandos ao mesmo \texttt{deviceId} são
+processados em série (a lâmpada Tuya aceita uma conexão por vez), enquanto
+dispositivos distintos correm em paralelo. Cada comando de voz é registrado na
+tabela \texttt{voice\_commands} com transcrição, intenção, confiança, sucesso e
+latência (\texttt{latencyMs}), o que fornece a base empírica das métricas do
+trabalho. No PWA, sinais sonoros curtos (\emph{earcons}) indicam os estados
+``ouvindo'', ``processando'', ``executado'' e ``erro'', dando \emph{feedback}
+imediato enquanto a rede responde (DETERDING et al., 2011).
+% VERIFICAR: apontar o componente do PWA que dispara os earcons (apps/web/...).
+
+A avaliação sobre 138 comandos reais mostrou acurácia de intenção de
+\textbf{87{,}7\%} e latência mediana (p50) de \textbf{463~ms} (p95 de 2140~ms),
+com um \emph{outlier} de 12{,}3~s correspondente ao \emph{timeout} de um
+dispositivo \emph{offline}. A taxa de \emph{execução} bem-sucedida foi de
+66{,}7\%, dominada não por erros do \emph{parser}, mas pela indisponibilidade de
+\emph{hardware} (ver \S~\ref{cap:desenvolvimento}). O Whisper apresentou
+alucinações típicas em trechos sem fala clara, como a transcrição espúria
+``\texttt{[Som de futebol]}''.
+% A análise completa (por que 87,7% de intenção mas 66,7% de execução) fica no
+% capítulo de Resultados; aqui é evidência de que o pipeline funciona fim a fim.
+
+\subsection{Comissionamento e controle local}
+
+A entrada de um dispositivo começa pela descoberta na LAN
+(\texttt{NetworkScannerService}), que combina três sinais de forma passiva e
+sem depender de nuvem: (i) escuta do \emph{broadcast} UDP que aparelhos Tuya
+emitem nas portas 6666/6667 (decifrado com a chave fixa do protocolo, revelando
+o \emph{device id} e a versão); (ii) varredura TCP da sub-rede nas portas
+típicas de IoT (80, 443, 6668, 9999); e (iii) identificação do fabricante pelo
+prefixo OUI do endereço MAC lido da tabela ARP. O resultado é uma lista de
+candidatos com palpite de protocolo, já pronta para o cadastro.
+
+A diferença crucial entre os dois protocolos-alvo está no comissionamento. O
+\textbf{Tapo} é controlável em sua \emph{forma plena}: bastam as credenciais de
+consumidor (e-mail e senha da conta TP-Link) para o \texttt{loginDeviceByIp}
+autenticar no protocolo KLAP diretamente na LAN, sem etapa intermediária. Já o
+\textbf{Tuya} exige a \texttt{local\_key} e o \emph{Device ID} do aparelho ---
+credenciais que o fabricante não expõe ao usuário final e que, na prática, só se
+obtêm por caminhos indiretos. Esse é o \emph{gap} central do trabalho: o
+comissionamento da lâmpada Intelbras EWS~410 permaneceu \textbf{bloqueado},
+constituindo evidência empírica da barreira que ecossistemas proprietários
+impõem ao controle local. A integração Tuya está, portanto, marcada como
+\emph{em validação}, enquanto o controle local do Tapo foi comprovado com
+latências medidas de \textbf{201--332~ms} por comando.
+
+% [...] — Detalhar aqui, se o aluno reproduzir, o caminho tentado para extrair a
+% local_key (app SmartLife/pareamento, harness de bootstrap) e por que falhou.
+
+\subsection{Segurança e privacidade}
+
+O DOMUS foi construído sob a premissa de que dados sensíveis nunca trafegam ou
+repousam em texto puro. O acesso à API é protegido por JWT, e todo dado de
+usuário é isolado por escopo: cada consulta filtra por \texttt{userId} e as
+relações usam \texttt{onDelete: Cascade}, de modo que um usuário jamais alcança
+dados de outro. Os segredos de dispositivo --- a \texttt{local\_key} Tuya e a
+senha Tapo --- são cifrados com \textbf{AES-256-GCM} antes de persistir, no
+formato \texttt{ivHex:authTagHex:cipherHex} (IV de 12 bytes, chave de 32 bytes
+vinda do ambiente). Esses segredos nunca são registrados em \emph{log}: o
+próprio \texttt{CryptoService} evita imprimir o \emph{payload} cifrado, e a
+descriptografia ocorre somente na \emph{factory}, em memória, no momento do uso.
+Quanto à voz, o áudio é tratado como efêmero --- gravado apenas para a
+transcrição e apagado logo depois ---, em conformidade com a LGPD
+(BRASIL, 2018).
+
+\subsection{Cenas e rotinas}
+
+Cenas e rotinas compartilham o mesmo executor de ações, o \texttt{ActionsRunner}.
+Uma \textbf{cena} (\texttt{Scene}) é uma lista ordenada de ações persistida em
+JSON; ao ser ativada, o \texttt{ScenesService} percorre as ações em ordem,
+respeitando o \texttt{delaySeconds} de cada passo, e delega cada uma ao
+\texttt{DevicesService} --- portanto, à fila serializada por dispositivo. Uma
+ação que falha não interrompe as demais: o erro é registrado e a execução
+prossegue, devolvendo ao final o resultado de cada passo.
+
+As \textbf{rotinas} (\texttt{Automation}) acrescentam agendamento. O
+\texttt{AutomationsService} converte a configuração de horário em uma expressão
+\emph{cron} e registra um \texttt{CronJob} no \emph{scheduler} do NestJS; ao
+subir, o \emph{hub} reagenda todas as automações habilitadas. Antes de persistir,
+a expressão é validada, evitando gravar uma rotina inagendável; e, no disparo, as
+\emph{condições} (faixa de horário, dia da semana) são avaliadas antes de
+executar as ações. Cada disparo emite um evento por WebSocket, que o PWA usa para
+refletir a mudança de estado sem \emph{polling}.
+
+\subsection{PWA offline}
+
+A escolha por um PWA (ADR-002) --- em vez de aplicativo nativo --- reforça a tese
+\textit{local-first}: o aplicativo é instalado no celular (``adicionar à tela
+inicial''), fala com o \emph{hub} pela rede local e não depende de servidores na
+nuvem para funcionar no dia a dia. O estado do servidor é gerenciado com TanStack
+Query, que mantém em \emph{cache} a última leitura conhecida dos dispositivos,
+permitindo que a interface continue exibindo o painel mesmo em oscilações de
+conectividade, enquanto os eventos por WebSocket ressincronizam o estado assim
+que a conexão volta.
+% [...] — Confirmar e descrever a estratégia de service worker / manifest do PWA
+% (apps/web): o que é pré-cacheado (\emph{app shell}), política de \emph{cache} das
+% chamadas à API e comportamento quando o hub está inacessível. Incluir aqui, se
+% houver, captura de tela do app instalado.
+
+Em síntese, o desenvolvimento entregou um núcleo funcional e testável sem
+\emph{hardware}, com controle local comprovado para o Tapo e um caminho de voz
+completo em português; as lacunas remanescentes --- notadamente o
+comissionamento Tuya --- são discutidas como resultado no próximo capítulo,
+juntamente com as métricas ainda a coletar (WER da transcrição, usabilidade por
+SUS e custo total via BOM).
