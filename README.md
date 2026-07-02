@@ -17,7 +17,7 @@ Prova de conceito de TCC.
 > sempre"** — a nuvem é usada só na instalação, para descobrir o device e obter a
 > chave local; daí em diante o controle é 100% na LAN.
 >
-> Esboço completo da monografia (v0.8): [docs/MONOGRAFIA_ESBOCO.md](docs/MONOGRAFIA_ESBOCO.md).
+> Esboço completo da monografia (v0.8): [docs/monografia/MONOGRAFIA_ESBOCO.md](docs/monografia/MONOGRAFIA_ESBOCO.md).
 
 - **Hub (backend):** NestJS + Prisma + PostgreSQL — controle local de Tuya/Intelbras
   e Tapo, voz (Whisper no hub), energia, rotinas, cenas e gamificação.
@@ -71,7 +71,7 @@ lâmpada física) · CI verde (cobertura ~80%).
 
 | Item | Estado |
 |------|--------|
-| Hardware confirmado | **Wi-Fi 2,4 GHz + Tuya** (não Zigbee), RGBCW E27, Kelvin 3000–6500K — fontes oficiais. Ver [docs/EWS410-integracao.md](docs/EWS410-integracao.md). |
+| Hardware confirmado | **Wi-Fi 2,4 GHz + Tuya** (não Zigbee), RGBCW E27, Kelvin 3000–6500K — fontes oficiais. Ver [docs/hardware/EWS410-integracao.md](docs/hardware/EWS410-integracao.md). |
 | Via escolhida | **Controle LOCAL na LAN via `tuyapi`** (adapter `TUYA` já existe). Cloud/HA = fallback. |
 | **GARGALO atual** | A lâmpada **não está no projeto Tuya** (só o device virtual) nem na LAN. Falta **provisionar**: parear no **SmartLife** (não Izy) → **Link App Account** no projeto `casai`. Bloqueio no link: *"upper limit of 2 projects"* → **desvincular a conta SmartLife de 1 projeto antigo** em iot.tuya.com (cada projeto → Devices → Link Tuya App Account → Unlink). |
 | Motor pronto | [`spikes/ews410-bootstrap.cjs`](spikes/ews410-bootstrap.cjs) — assim que a lâmpada parear+linkar, faz tudo: pega device_id+local_key da nuvem, lê `/specification` (v1 vs v2 + Kelvin), acha IP+protocolo na LAN, e **controla local** (dump DPS real + on/off/brilho/temp/cor). |
@@ -233,7 +233,7 @@ A tela **Dispositivos** tem dois caminhos:
 
 > A descoberta **identifica** o aparelho, mas **controlar exige credenciais**:
 > - **Tuya/Intelbras:** `local_key` + Device ID (obtenha pelo portal Tuya IoT —
->   ver [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md)). A `local_key` é cifrada
+>   ver [docs/hardware/HARDWARE_SETUP.md](docs/hardware/HARDWARE_SETUP.md)). A `local_key` é cifrada
 >   no banco; nunca é logada nem commitada.
 > - **Tapo:** e-mail e senha da conta TP-Link (também cifrada).
 
@@ -292,11 +292,11 @@ Adapters Tuya/Tapo, o scanner de rede e o STT nativo ficam fora da cobertura
 ## 7. Hardware (Tuya/Tapo)
 
 Antes de usar dispositivos reais, valide com os **spikes** (Passo 1): veja
-[spikes/README.md](spikes/README.md) e [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md).
+[spikes/README.md](spikes/README.md) e [docs/hardware/HARDWARE_SETUP.md](docs/hardware/HARDWARE_SETUP.md).
 
 ## 8. Deploy (apresentação do TCC)
 
-Guia completo em **[docs/DEPLOY.md](docs/DEPLOY.md)**. Resumo:
+Guia completo em **[docs/setup/DEPLOY.md](docs/setup/DEPLOY.md)**. Resumo:
 
 - **Defesa ao vivo (hardware real):** `docker compose up -d` no notebook + hotspot
   próprio + lâmpada/tomada na mesa. PWA instalado no celular.
@@ -356,7 +356,7 @@ Em [docs/screenshots/](docs/screenshots/):
 ## Escopo e roadmap
 
 MVP e cortes em [CLAUDE.md](CLAUDE.md) §9. Plano de evolução em
-[docs/ESCOPO_MELHORIA.md](docs/ESCOPO_MELHORIA.md). Geofencing por GPS (ex.: ligar a
+[docs/produto/ESCOPO_MELHORIA.md](docs/produto/ESCOPO_MELHORIA.md). Geofencing por GPS (ex.: ligar a
 luz ao chegar em casa) é item de **fase futura** — o DOMUS é local-first e não faz
 controle por geolocalização no MVP.
 
@@ -376,4 +376,4 @@ controle por geolocalização no MVP.
 (Zigbee/Matter, que exige hardware extra). O recorte é comissionar e controlar, com a
 **menor barreira possível**, os dispositivos **Wi-Fi baratos** (Tuya) já presentes nos
 lares brasileiros — onde o comissionamento local sem nuvem nem app segue mal resolvido.
-Detalhe em [docs/RELATED_WORK_Home_Assistant.md](docs/RELATED_WORK_Home_Assistant.md).
+Detalhe em [docs/monografia/RELATED_WORK_Home_Assistant.md](docs/monografia/RELATED_WORK_Home_Assistant.md).

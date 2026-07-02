@@ -168,7 +168,7 @@ fonte"** amarrando cada afirmação do título a pelo menos uma referência.
 | **Qualquer hardware falha** | — | **Modo MOCK como rede de segurança geral** + **vídeo gravado** de 2–3 min: controle local Tapo (latência na tela), comando de voz, dashboard de energia, criação de rotina. |
 
 **Regra de ouro da demo:** o que está **provado** (Tapo P110 via KLAP, 201–332 ms em
-`docs/devices-analysis.md`) é a estrela; o que **não está** (EWS 410) entra apenas como código +
+`docs/hardware/devices-analysis.md`) é a estrela; o que **não está** (EWS 410) entra apenas como código +
 limitação declarada. **Nunca** apresente o adapter Tuya LAN como "funcionando em hardware".
 
 ---
@@ -182,5 +182,5 @@ limitação declarada. **Nunca** apresente o adapter Tuya LAN como "funcionando 
 4. **Dias 10–21:** C1 (escrever a monografia, integrando todos os artefatos acima) + I4/I6 (limitações
    + 3 acurácias) + gravar vídeo de demo (plano B).
 
-Os arquivos-chave para ancorar o texto já existem e são fortes: `docs/RELATED_WORK_Home_Assistant.md`
-(material de capítulo quase pronto) e `docs/devices-analysis.md` (vira a seção de Resultados de hardware).
+Os arquivos-chave para ancorar o texto já existem e são fortes: `docs/monografia/RELATED_WORK_Home_Assistant.md`
+(material de capítulo quase pronto) e `docs/hardware/devices-analysis.md` (vira a seção de Resultados de hardware).
