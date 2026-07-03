@@ -1,131 +1,149 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Zap, Gauge, TrendingUp, Play } from 'lucide-react';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
+import { Zap, Gauge, TrendingUp, Plug, CalendarDays, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppShell } from '@/components/app-shell';
-import { DeviceWidget } from '@/components/device-widget';
 import { EnergyChart } from '@/components/energy-chart';
+import { ConsumptionDonut } from '@/components/consumption-donut';
+import { MonthlyBars } from '@/components/monthly-bars';
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { useDeviceSync } from '@/lib/use-device-sync';
-import { formatBRL } from '@/lib/utils';
+import { cn, formatBRL } from '@/lib/utils';
+import type { EnergyGranularity, EnergyPeriod } from '@/lib/types';
 
-export default function DashboardPage() {
+const PERIODS: { key: EnergyPeriod; label: string }[] = [
+  { key: '24h', label: '24 horas' },
+  { key: '7d', label: '7 dias' },
+  { key: '30d', label: '30 dias' },
+];
+
+// Granularidade por período: minutos nas 24h (definição fina), horas em 7d, dias em 30d.
+const GRAN: Record<EnergyPeriod, EnergyGranularity> = { '24h': 'minute', '7d': 'hour', '30d': 'day' };
+
+export default function EnergiaPage() {
   const qc = useQueryClient();
+  const [period, setPeriod] = React.useState<EnergyPeriod>('24h');
+  const granularity = GRAN[period];
 
-  const devices = useQuery({ queryKey: ['devices'], queryFn: api.devices });
   const summary = useQuery({ queryKey: ['energy'], queryFn: api.energySummary });
-  const scenes = useQuery({ queryKey: ['scenes'], queryFn: api.scenes });
-
-  const energyDevice = devices.data?.find((d) => d.supportsEnergy);
-  const history = useQuery({
-    queryKey: ['energy-history', energyDevice?.id],
-    queryFn: () => api.energyHistory(energyDevice!.id, '24h', 'hour'),
-    enabled: !!energyDevice,
+  const home = useQuery({
+    queryKey: ['energy-home-history', period],
+    queryFn: () => api.energyHistoryHome(period, granularity),
   });
+  const monthly = useQuery({ queryKey: ['energy-monthly'], queryFn: api.energyMonthly });
 
-  // Dispositivos (cadastro/remoção/estado/offline) em tempo real.
   useDeviceSync();
 
-  // Tempo real de energia.
+  // Tempo real: cada leitura refresca resumo, histórico e comparativo.
   React.useEffect(() => {
     const socket = getSocket();
-    const refreshEnergy = () => {
+    const refresh = () => {
       void qc.invalidateQueries({ queryKey: ['energy'] });
-      void qc.invalidateQueries({ queryKey: ['energy-history'] });
+      void qc.invalidateQueries({ queryKey: ['energy-home-history'] });
+      void qc.invalidateQueries({ queryKey: ['energy-monthly'] });
     };
-    socket.on('energy:reading', refreshEnergy);
+    socket.on('energy:reading', refresh);
     return () => {
-      socket.off('energy:reading', refreshEnergy);
+      socket.off('energy:reading', refresh);
     };
   }, [qc]);
 
-  async function activateScene(id: string, name: string) {
-    try {
-      await api.activateScene(id);
-      toast.success(`Cena "${name}" ativada`);
-      void qc.invalidateQueries({ queryKey: ['devices'] });
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }
+  const byDevice = home.data?.byDevice ?? [];
+  const months = monthly.data?.months ?? [];
+  const delta =
+    months.length >= 2
+      ? ((months[months.length - 1].kwh - months[months.length - 2].kwh) /
+          (months[months.length - 2].kwh || 1)) *
+        100
+      : null;
 
   return (
-    <AppShell title="DOMUS" subtitle="Sua casa, no controle">
-      {/* Cenas em um toque */}
-      {scenes.data && scenes.data.length > 0 && (
-        <section className="mb-6 flex gap-2 overflow-x-auto pb-1">
-          {scenes.data.map((s) => (
-            <Button
-              key={s.id}
-              variant="outline"
-              className="shrink-0"
-              onClick={() => void activateScene(s.id, s.name)}
-            >
-              <Play className="mr-1.5 h-3.5 w-3.5 text-chart-2" />
-              {s.name}
-            </Button>
-          ))}
-        </section>
-      )}
-
-      {/* Resumo de energia (bento) */}
-      <section className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          icon={<Gauge className="h-5 w-5" />}
-          label="Agora"
-          value={`${summary.data?.totalWatts ?? 0} W`}
-        />
-        <StatCard
-          icon={<Zap className="h-5 w-5" />}
-          label="Hoje"
-          value={`${summary.data?.kwhToday ?? 0} kWh`}
-        />
-        <StatCard
-          icon={<Zap className="h-5 w-5" />}
-          label="Custo hoje"
-          value={formatBRL(summary.data?.costToday ?? 0)}
-        />
-        <StatCard
-          icon={<TrendingUp className="h-5 w-5" />}
-          label="Projeção mês"
-          value={formatBRL(summary.data?.projectedMonthlyCost ?? 0)}
-        />
+    <AppShell title="Energia" subtitle="Consumo da casa inteira em tempo real">
+      {/* Resumo da casa (todas as conexões somadas) */}
+      <section className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard icon={<Gauge className="h-4 w-4" />} label="Agora" value={`${summary.data?.totalWatts ?? 0} W`} />
+        <StatCard icon={<Zap className="h-4 w-4" />} label="Hoje" value={`${summary.data?.kwhToday ?? 0} kWh`} />
+        <StatCard icon={<Wallet className="h-4 w-4" />} label="Custo hoje" value={formatBRL(summary.data?.costToday ?? 0)} />
+        <StatCard icon={<CalendarDays className="h-4 w-4" />} label="Mês" value={`${summary.data?.kwhMonth ?? 0} kWh`} />
+        <StatCard icon={<Wallet className="h-4 w-4" />} label="Custo mês" value={formatBRL(summary.data?.costMonth ?? 0)} />
+        <StatCard icon={<TrendingUp className="h-4 w-4" />} label="Projeção mês" value={formatBRL(summary.data?.projectedMonthlyCost ?? 0)} />
       </section>
 
+      {/* Série temporal com seletor de período */}
       <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Consumo (24h)</CardTitle>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+          <CardTitle>Consumo da casa</CardTitle>
+          <PeriodTabs value={period} onChange={setPeriod} />
         </CardHeader>
         <CardContent>
-          <EnergyChart buckets={history.data?.buckets ?? []} />
+          <EnergyChart buckets={home.data?.buckets ?? []} granularity={granularity} />
         </CardContent>
       </Card>
 
-      {/* Bento grid de dispositivos */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {devices.isLoading && <p className="text-muted-foreground">Carregando dispositivos…</p>}
-        {devices.data?.length === 0 && (
-          <Card>
-            <CardContent className="pt-5 text-sm text-muted-foreground">
-              Nenhum dispositivo ainda.{' '}
-              <Link href="/dispositivos" className="underline hover:text-foreground">
-                Cadastre o primeiro aqui
-              </Link>
-              .
-            </CardContent>
-          </Card>
-        )}
-        {devices.data?.map((device) => (
-          <DeviceWidget key={device.id} device={device} />
-        ))}
-      </section>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Participação de cada conexão no total (donut) */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Por conexão · {PERIODS.find((p) => p.key === period)?.label}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {home.isLoading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Carregando…</p>
+            ) : (
+              <ConsumptionDonut data={byDevice} />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Comparativo entre meses (barras) */}
+        <Card>
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+            <CardTitle>Comparativo mensal</CardTitle>
+            {delta != null && (
+              <span className="text-xs text-muted-foreground">
+                vs mês anterior:{' '}
+                <span className="font-medium text-foreground tabular-nums">
+                  {delta >= 0 ? '+' : ''}
+                  {delta.toFixed(0)}%
+                </span>
+              </span>
+            )}
+          </CardHeader>
+          <CardContent>
+            {monthly.isLoading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Carregando…</p>
+            ) : (
+              <MonthlyBars months={months} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </AppShell>
+  );
+}
+
+function PeriodTabs({ value, onChange }: { value: EnergyPeriod; onChange: (p: EnergyPeriod) => void }) {
+  return (
+    <div className="inline-flex rounded-lg border bg-card p-0.5">
+      {PERIODS.map((p) => (
+        <button
+          key={p.key}
+          type="button"
+          onClick={() => onChange(p.key)}
+          className={cn(
+            'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+            value === p.key
+              ? 'bg-secondary text-foreground'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {p.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -137,7 +155,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
           {icon}
           {label}
         </span>
-        <span className="text-xl font-semibold tabular-nums">{value}</span>
+        <span className="text-lg font-semibold tabular-nums">{value}</span>
       </CardContent>
     </Card>
   );

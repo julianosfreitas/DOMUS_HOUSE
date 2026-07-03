@@ -6,11 +6,16 @@ import type {
   DeviceState,
   DiscoveredDevice,
   EnergyBucket,
+  EnergyGranularity,
+  EnergyPeriod,
   EnergySummary,
   GamificationSummary,
+  HomeEnergyHistory,
+  MonthlyEnergy,
   Scene,
   TtsStatus,
   VoiceResult,
+  VoiceStats,
 } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
@@ -200,6 +205,13 @@ export const api = {
       `/devices/${deviceId}/energy/history?period=${period}&granularity=${granularity}`,
     ),
 
+  // Histórico agregado da casa inteira (todas as conexões) — aba Energia.
+  energyHistoryHome: (period: EnergyPeriod = '24h', granularity: EnergyGranularity = 'hour') =>
+    request<HomeEnergyHistory>(`/energy/history?period=${period}&granularity=${granularity}`),
+
+  // Consumo por mês (comparativo entre meses).
+  energyMonthly: () => request<MonthlyEnergy>('/energy/monthly'),
+
   voiceCommandText: (text: string) =>
     request<VoiceResult>('/voice/command', { method: 'POST', body: JSON.stringify({ text }) }),
 
@@ -208,6 +220,9 @@ export const api = {
     form.append('audio', audio, 'comando.webm');
     return request<VoiceResult>('/voice/command', { method: 'POST', body: form });
   },
+
+  // Métricas de voz agregadas ao vivo (tela Resultados da defesa).
+  voiceStats: () => request<VoiceStats>('/voice/stats'),
 
   // Voz da assistente via Voicebox (app local). Status para o seletor de voz.
   ttsStatus: () => request<TtsStatus>('/voice/tts/status'),

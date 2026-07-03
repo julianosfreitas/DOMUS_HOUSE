@@ -1,7 +1,7 @@
 # Estrutura de slides — Defesa DOMUS (para IA de criação de slides)
 
 > Cole este arquivo inteiro na IA de slides (Gamma, Beautiful.ai, Tome, Copilot etc.).
-> São **12 slides**, 16:9, para defesa de TCC. Mantenha a identidade visual abaixo.
+> São **13 slides**, 16:9, para defesa de TCC. Mantenha a identidade visual abaixo.
 
 ---
 
@@ -24,6 +24,9 @@
   visual recorrente (canto/rodapé discreto). Rodapé: "DOMUS · TCC 2026 · Faculdade Nova Roma".
 - **Regra de honestidade:** separar visualmente resultado **confirmado** de **a coletar**
   (não inflar números).
+- **Regra de prova física:** usar **fotos reais** do hardware e do sistema rodando —
+  **nunca** molduras 3D de iPhone, screenshots fake nem imagens de banco. Fundo neutro/escuro,
+  bem iluminado. Materializa o software para a banca (mata a impressão de "projeto de Figma").
 
 ---
 
@@ -85,16 +88,29 @@
 - **Adapter pattern:** `TuyaAdapter`, `TapoAdapter`, `MockAdapter` — nenhum controller fala
   com a lib de IoT direto; modo MOCK roda sem hardware.
 - **Segurança:** JWT; `local_key` cifrada em **AES-256-GCM**; escopo por usuário.
-- **Visual:** diagrama de blocos (PWA → API/hub → adapters → dispositivos), acentos da paleta.
+- **Visual:** diagrama de blocos (PWA → API/hub → adapters → dispositivos) **+ FOTO REAL do hub
+  físico** (Raspberry Pi / mini-PC / plaquinha com cabos na mesa, fundo neutro, bem iluminado).
+  Materializa o "core NestJS" — o código roda *dentro daquela caixinha*.
 
 ## SLIDE 8 — TUCO: a voz em português
 - **Título:** TUCO — o assistente por voz
 - Fala um comando → **Whisper no hub** transcreve → interpreta a intenção → executa; fila
   serializada por dispositivo; funciona **offline** (PWA).
 - **Mascote TUCO** (tucano) com 4 estados: entrada, escutando, entendeu, cabisbaixo.
-- **Visual:** 2–3 screenshots reais da tela de voz (TUCO) + celular (mobile).
+- **Visual:** **FOTO REAL** do celular com a PWA DOMUS rodando de verdade (na mesa, ao lado da
+  lâmpada/hub, tela brilhando) — **sem** moldura 3D de iPhone. Ao lado, os **4 ícones puros do
+  TUCO** (Ocioso · Ouvindo · Sucesso · Erro). Prova que o PWA está buildado e na palma da mão.
 
-## SLIDE 9 — Resultados
+## SLIDE 9 — DOMUS em Ação (Demo)
+- **Título:** DOMUS em Ação
+- **Vídeo curto (30–45 s), gravado antes** — Lei de Murphy reina em IoT ao vivo; vídeo sem cortes
+  vale mais que 100 páginas de monografia.
+- **Roteiro:** (1) tira a internet (desconecta cabo do roteador / desliga Wi-Fi externo);
+  (2) celular roda a PWA em **modo offline local**; (3) fala *"Tuco, ligar a luz"*;
+  (4) mascote muda de estado na tela; (5) **a luz acende no fundo** — prova a baixa latência.
+- **Visual:** frame do vídeo em destaque + botão play; badge "offline" visível. Um take único, liso.
+
+## SLIDE 10 — Resultados
 - **Título:** O que foi medido
 - **Confirmado:**
   - Controle local **Tapo P110** via **KLAP** — latência **201–332 ms**.
@@ -102,17 +118,22 @@
   - Execução ponta-a-ponta **66,7%** (dominada por hardware offline, **não** pelo parser).
   - Latência voz→ação: **p50 463 ms · p95 2140 ms** (outlier 12,3 s = timeout de hardware).
 - **A coletar:** WER (corpus), SUS (usabilidade), BOM (custo), energia antes/depois.
-- **Visual:** tabela/painel de métricas; badge "confirmado" (verde) × "a coletar" (cinza).
+- **Visual:** tabela/painel de métricas; badge "confirmado" (verde) × "a coletar" (cinza)
+  **+ FOTO REAL do ambiente de testes**: tela do notebook com os logs do terminal (os
+  milissegundos de resposta) desfocada ao fundo, **lâmpada acesa em primeiro plano**.
+  Traz autoridade científica — os números (87,7% · 463 ms) ganham vida no "mão na massa".
 
-## SLIDE 10 — A barreira, na prática
+## SLIDE 11 — A barreira, na prática
 - **Título:** A lâmpada que não pareou — e por que isso importa
 - A **Intelbras EWS 410 (Tuya)** não foi comissionada localmente (exige `local_key`/Device ID
   via portal; limite de slots da plataforma).
 - **Reenquadramento:** o bloqueio é **evidência empírica** da barreira de comissionamento —
   ela é real a ponto de travar até o próprio autor.
-- **Visual:** contraste Tapo (✔ forma plena) × Tuya (⧗ em validação).
+- **Visual:** **FOTOS REAIS** dos dois dispositivos comprados, lado a lado — **Tuya** (lâmpada
+  Intelbras EWS 410 que falhou, ⧗ em validação) × **Tapo** (tomada TP-Link P110 que funcionou,
+  ✔ forma plena). Hardware físico exato cria empatia e prova empírica.
 
-## SLIDE 11 — Limitações e trabalhos futuros
+## SLIDE 12 — Limitações e trabalhos futuros
 - **Limitações:** energia sem carga real; adapters físicos fora da cobertura de testes por
   design; retenção de transcrições consentida durante o estudo; Tuya não validado em hardware;
   título **direcional** (contribuição a um objetivo, não resultado alcançado).
@@ -120,7 +141,7 @@
   multiusuário; avaliação com público idoso.
 - **Visual:** duas colunas (Limitações | Futuro).
 
-## SLIDE 12 — Conclusão
+## SLIDE 13 — Conclusão
 - **Forma fraca (demonstrada):** viabilidade técnica do controle local por voz pt-BR **sem
   dependência permanente de nuvem**.
 - **Forma forte (direção):** a democratização passa pelo comissionamento — hipótese em aberto.

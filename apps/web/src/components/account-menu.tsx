@@ -1,45 +1,33 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
-import { Volume2, VolumeX, Monitor, Sparkles, Sun, Moon, LogOut, Check } from 'lucide-react';
+import { Volume2, VolumeX, Monitor, Sun, Moon, LogOut, Check, Trophy, ChevronRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { api } from '@/lib/api';
-import {
-  getTtsEngine,
-  setTtsEngine,
-  getTtsProfile,
-  setTtsProfile,
-  isTtsEnabled,
-  setTtsEnabled,
-  speak,
-  type TtsEngine,
-} from '@/lib/tts';
+import { isTtsEnabled, setTtsEnabled, speak } from '@/lib/tts';
 import { cn } from '@/lib/utils';
 
 /**
  * Menu da conta na topbar: avatar do usuário que abre um painel que "desce" com
- * animação suave. Concentra os ajustes de manutenção da conta — fala da assistente,
- * motor de voz (navegador/Voicebox), tema e sair.
+ * animação suave. Concentra a conta e seus ajustes — conquistas, fala da
+ * assistente, tema e sair.
  */
 export function AccountMenu({ onLogout }: { onLogout: () => void }) {
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
 
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, staleTime: 60_000 });
-  const status = useQuery({ queryKey: ['tts-status'], queryFn: api.ttsStatus, staleTime: 30_000, enabled: open });
+  const game = useQuery({ queryKey: ['gamification'], queryFn: api.gamification, enabled: open });
   const { theme, setTheme } = useTheme();
 
   const [ttsOn, setTtsOn] = React.useState(true);
-  const [engine, setEngine] = React.useState<TtsEngine>('browser');
-  const [profile, setProfile] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setTtsOn(isTtsEnabled());
-    setEngine(getTtsEngine());
-    setProfile(getTtsProfile());
   }, [open]);
 
   // Fecha ao clicar fora ou apertar Esc.
@@ -59,18 +47,11 @@ export function AccountMenu({ onLogout }: { onLogout: () => void }) {
 
   const email = me.data?.email ?? '';
   const initial = (me.data?.name ?? email ?? 'U').trim().charAt(0).toUpperCase() || 'U';
-  const available = status.data?.available ?? false;
-  const profiles = status.data?.profiles ?? [];
 
   function toggleFala(on: boolean) {
     setTtsOn(on);
     setTtsEnabled(on);
     if (on) speak('Voz da assistente ativada');
-  }
-  function chooseEngine(e: TtsEngine) {
-    if (e === 'voicebox' && !available) return;
-    setEngine(e);
-    setTtsEngine(e);
   }
 
   const THEMES: { key: string; label: string; icon: React.ReactNode }[] = [
@@ -114,6 +95,22 @@ export function AccountMenu({ onLogout }: { onLogout: () => void }) {
             </div>
 
             <div className="max-h-[70vh] overflow-y-auto p-2">
+              {/* Conquistas — gamificação vive aqui (fora da barra principal) */}
+              <Link
+                href="/conquistas"
+                onClick={() => setOpen(false)}
+                className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-secondary"
+              >
+                <span className="flex items-center gap-2 text-sm">
+                  <Trophy className="h-4 w-4 text-chart-2" />
+                  Conquistas
+                </span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  {game.data ? `${game.data.points} pts` : ''}
+                  <ChevronRight className="h-4 w-4" />
+                </span>
+              </Link>
+
               {/* Fala da assistente */}
               <div className="flex items-center justify-between gap-3 rounded-lg px-2 py-2">
                 <span className="flex items-center gap-2 text-sm">
@@ -126,45 +123,6 @@ export function AccountMenu({ onLogout }: { onLogout: () => void }) {
                 </span>
                 <Switch checked={ttsOn} onCheckedChange={toggleFala} aria-label="Fala da assistente" />
               </div>
-
-              {/* Motor de voz */}
-              <p className="px-2 pt-2 text-xs font-medium text-muted-foreground">Voz da assistente</p>
-              <div className="grid grid-cols-2 gap-2 p-2">
-                <EngineOption
-                  active={engine === 'browser'}
-                  onClick={() => chooseEngine('browser')}
-                  icon={<Monitor className="h-4 w-4" />}
-                  title="Navegador"
-                  subtitle="pt-BR"
-                />
-                <EngineOption
-                  active={engine === 'voicebox'}
-                  onClick={() => chooseEngine('voicebox')}
-                  icon={<Sparkles className="h-4 w-4 text-chart-2" />}
-                  title={available ? 'Voicebox' : 'Voicebox'}
-                  subtitle={available ? 'voz local' : 'offline'}
-                  dim={!available}
-                />
-              </div>
-              {engine === 'voicebox' && available && (
-                <select
-                  value={profile ?? ''}
-                  onChange={(e) => {
-                    setProfile(e.target.value);
-                    setTtsProfile(e.target.value);
-                  }}
-                  className="mx-2 mb-1 w-[calc(100%-1rem)] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm"
-                >
-                  <option value="" disabled>
-                    Selecione uma voz…
-                  </option>
-                  {profiles.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              )}
 
               {/* Tema */}
               <p className="px-2 pt-2 text-xs font-medium text-muted-foreground">Tema</p>
@@ -207,39 +165,5 @@ export function AccountMenu({ onLogout }: { onLogout: () => void }) {
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-function EngineOption({
-  active,
-  onClick,
-  icon,
-  title,
-  subtitle,
-  dim,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  dim?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex flex-col items-start gap-0.5 rounded-md border p-2 text-left transition-colors',
-        active ? 'border-chart-2 bg-secondary' : 'border-input hover:bg-secondary',
-        dim && 'opacity-60',
-      )}
-    >
-      <span className="flex items-center gap-1.5 text-sm font-medium">
-        {icon}
-        {title}
-      </span>
-      <span className="text-xs text-muted-foreground">{subtitle}</span>
-    </button>
   );
 }

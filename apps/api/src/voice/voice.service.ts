@@ -20,6 +20,17 @@ export interface VoiceCommandResult {
   latencyMs: number;
 }
 
+export interface VoiceStats {
+  total: number;
+  successCount: number;
+  successRate: number | null; // 0..1
+  latencyP50: number | null; // ms
+  latencyP95: number | null; // ms
+  latencyMax: number | null; // ms
+  latencyAvg: number | null; // ms
+  avgConfidence: number | null; // 0..1
+}
+
 @Injectable()
 export class VoiceService {
   constructor(
@@ -81,6 +92,40 @@ export class VoiceService {
     };
   }
 
+  /**
+   * Agrega as métricas de voz do usuário direto das linhas persistidas em
+   * VoiceCommand — o "confirmado ao vivo" da defesa: n, taxa de execução,
+   * latência p50/p95/máx e confiança média. NÃO calcula acurácia de intenção:
+   * o banco guarda a intenção interpretada, não a intenção-verdade.
+   */
+  async stats(userId: string): Promise<VoiceStats> {
+    const rows = await this.prisma.voiceCommand.findMany({
+      where: { userId },
+      select: { success: true, latencyMs: true, confidence: true },
+    });
+
+    const total = rows.length;
+    const successCount = rows.filter((r) => r.success).length;
+    const latencies = rows
+      .map((r) => r.latencyMs)
+      .filter((n): n is number => typeof n === 'number')
+      .sort((a, b) => a - b);
+    const confidences = rows
+      .map((r) => r.confidence)
+      .filter((n): n is number => typeof n === 'number');
+
+    return {
+      total,
+      successCount,
+      successRate: total > 0 ? successCount / total : null,
+      latencyP50: percentile(latencies, 50),
+      latencyP95: percentile(latencies, 95),
+      latencyMax: latencies.length > 0 ? latencies[latencies.length - 1] : null,
+      latencyAvg: latencies.length > 0 ? Math.round(mean(latencies)) : null,
+      avgConfidence: confidences.length > 0 ? mean(confidences) : null,
+    };
+  }
+
   private async loadDevices(userId: string): Promise<ParsableDevice[]> {
     const devices = await this.prisma.device.findMany({
       where: { userId },
@@ -137,4 +182,16 @@ export class VoiceService {
       },
     });
   }
+}
+
+/** Percentil (nearest-rank) sobre um array JÁ ordenado em ordem crescente. */
+function percentile(sorted: number[], p: number): number | null {
+  if (sorted.length === 0) return null;
+  const rank = Math.ceil((p / 100) * sorted.length);
+  const idx = Math.min(sorted.length - 1, Math.max(0, rank - 1));
+  return sorted[idx];
+}
+
+function mean(xs: number[]): number {
+  return xs.reduce((sum, x) => sum + x, 0) / xs.length;
 }

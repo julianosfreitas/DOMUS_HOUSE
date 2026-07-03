@@ -4,8 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { Home, Sparkles, Plug, Trophy, Mic } from 'lucide-react';
+import { Zap, Sparkles, Plug, Mic, BarChart3 } from 'lucide-react';
 import { GradientBackground } from '@/components/ui/gradient-background';
 import { AccountMenu } from '@/components/account-menu';
 import { VoiceFab } from '@/components/voice-fab';
@@ -15,27 +14,31 @@ import { disconnectSocket } from '@/lib/socket';
 import { unlockSfx } from '@/lib/sfx';
 import { cn } from '@/lib/utils';
 
+// Ordem da nav espelha a narrativa da defesa (slides): a voz (TUCO) abre, depois o
+// controle local dos dispositivos, as rotinas, a energia e por fim os resultados medidos.
+// Conquistas (gamificação) saiu da barra principal — vive no menu da conta.
 const NAV = [
   { href: '/voz', label: 'Voz', icon: Mic },
-  { href: '/inicio', label: 'Início', icon: Home },
   { href: '/dispositivos', label: 'Dispositivos', icon: Plug },
   { href: '/rotinas', label: 'Rotinas', icon: Sparkles },
-  { href: '/conquistas', label: 'Conquistas', icon: Trophy },
+  { href: '/inicio', label: 'Energia', icon: Zap },
+  { href: '/resultados', label: 'Resultados', icon: BarChart3 },
 ] as const;
 
 /** Ícone brasileiro (dingbat) do cabeçalho, por rota — dá identidade e dinâmica. */
 function headerIcon(path: string): string {
   if (path.startsWith('/voz')) return 'y'; // arara — a que "fala"
-  if (path.startsWith('/inicio')) return '^'; // bandeira
+  if (path.startsWith('/inicio')) return '^'; // bandeira — energia/painel
   if (path.startsWith('/dispositivos')) return 'D'; // tucano (marca)
   if (path.startsWith('/rotinas')) return '$'; // sol
+  if (path.startsWith('/resultados')) return '5'; // palmeira — resultados medidos
   if (path.startsWith('/conquistas')) return '3'; // troféu
   return 'D';
 }
 
 /**
- * Shell autenticado: topbar minimalista (marca · navegação · nível · conta).
- * A conta (avatar) abre o menu com os ajustes (fala, voz, tema, sair).
+ * Shell autenticado: topbar minimalista (marca · navegação · conta).
+ * A conta (avatar) abre o menu com os ajustes (fala, voz, tema, conquistas, sair).
  */
 export function AppShell({
   title,
@@ -57,8 +60,6 @@ export function AppShell({
       setReady(true);
     }
   }, [router]);
-
-  const game = useQuery({ queryKey: ['gamification'], queryFn: api.gamification, enabled: ready });
 
   // Destrava o áudio (earcons de voz) no 1º gesto — necessário no mobile (iOS/Android),
   // onde autoplay é bloqueado fora de um toque. Uma vez só, em qualquer página.
@@ -137,15 +138,6 @@ export function AppShell({
           </nav>
 
           <div className="flex shrink-0 items-center gap-2">
-            {game.data && (
-              <Link
-                href="/conquistas"
-                className="hidden items-center gap-1 rounded-full border bg-card px-2.5 py-1 text-xs lg:inline-flex"
-              >
-                <Trophy className="h-3.5 w-3.5 text-chart-2" />
-                {game.data.points}
-              </Link>
-            )}
             <AccountMenu onLogout={() => void logout()} />
           </div>
         </div>

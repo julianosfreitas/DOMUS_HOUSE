@@ -7,6 +7,6 @@ export class EnergyHistoryQueryDto {
   period: EnergyPeriod = '24h';
 
   @IsOptional()
-  @IsIn(['hour', 'day'])
+  @IsIn(['minute', 'hour', 'day'])
   granularity: EnergyGranularity = 'hour';
 }

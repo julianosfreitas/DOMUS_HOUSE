@@ -7,12 +7,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DevicesService } from '../devices/devices.service';
 import { DeviceEvents } from '../devices/device-events';
 
 export type EnergyPeriod = '24h' | '7d' | '30d';
-export type EnergyGranularity = 'hour' | 'day';
+export type EnergyGranularity = 'minute' | 'hour' | 'day';
 
 export interface HistoryBucket {
   bucket: string; // ISO do início do balde
@@ -166,6 +167,101 @@ export class EnergyService implements OnModuleInit, OnModuleDestroy {
     return { deviceId, period, granularity, buckets };
   }
 
+  /**
+   * Histórico agregado da CASA INTEIRA: para cada balde de tempo, soma a potência
+   * média de cada conexão que mede energia. Também devolve a contribuição de cada
+   * conexão (potência recente + kWh estimado na janela) — é o escopo geral da aba
+   * Energia, cobrindo todas as conexões de uma vez.
+   */
+  async homeHistory(
+    userId: string,
+    period: EnergyPeriod,
+    granularity: EnergyGranularity,
+  ): Promise<{
+    period: EnergyPeriod;
+    granularity: EnergyGranularity;
+    buckets: HistoryBucket[];
+    byDevice: { deviceId: string; name: string; recentWatts: number; kwh: number }[];
+  }> {
+    const devices = await this.prisma.device.findMany({
+      where: { userId, supportsEnergy: true },
+      select: { id: true, name: true },
+    });
+    const ids = devices.map((d) => d.id);
+    if (ids.length === 0) {
+      return { period, granularity, buckets: [], byDevice: [] };
+    }
+
+    const since = new Date(Date.now() - PERIOD_MS[period]);
+    // Teto de linhas em memória (mesmo tradeoff do history() por dispositivo): com
+    // muitas conexões numa janela longa (30d) o take 'desc' pode cortar leituras
+    // antigas e subestimar baldes distantes. O caso da aba Energia é 24h/hour, bem
+    // abaixo do teto, então na prática não trunca.
+    const readings = await this.prisma.energyReading.findMany({
+      where: { deviceId: { in: ids }, readAt: { gte: since } },
+      orderBy: { readAt: 'desc' },
+      take: HISTORY_MAX_ROWS,
+      select: { deviceId: true, watts: true, readAt: true },
+    });
+
+    // deviceId -> (balde -> {soma, contagem})
+    const perDevice = new Map<string, Map<string, { sum: number; count: number }>>();
+    const bucketKeys = new Set<string>();
+    for (const r of readings) {
+      const key = this.bucketKey(r.readAt, granularity);
+      bucketKeys.add(key);
+      let byBucket = perDevice.get(r.deviceId);
+      if (!byBucket) {
+        byBucket = new Map();
+        perDevice.set(r.deviceId, byBucket);
+      }
+      const g = byBucket.get(key) ?? { sum: 0, count: 0 };
+      g.sum += r.watts;
+      g.count += 1;
+      byBucket.set(key, g);
+    }
+
+    const orderedKeys = [...bucketKeys].sort();
+
+    // Total da casa por balde = soma das médias de cada conexão naquele balde.
+    const buckets: HistoryBucket[] = orderedKeys.map((key) => {
+      let total = 0;
+      let samples = 0;
+      for (const byBucket of perDevice.values()) {
+        const g = byBucket.get(key);
+        if (g) {
+          total += g.sum / g.count;
+          samples += g.count;
+        }
+      }
+      return { bucket: key, avgWatts: round2(total), samples };
+    });
+
+    // Energia (kWh) = potência média × duração do balde. Cada balde cobre 1 min
+    // ('minute'), 1h ('hour') ou 24h ('day') — sem essa duração o kWh sairia errado.
+    const hoursPerBucket = granularity === 'day' ? 24 : granularity === 'minute' ? 1 / 60 : 1;
+
+    // Contribuição de cada conexão na janela (mais gastadora primeiro).
+    const byDevice = devices
+      .map((d) => {
+        const byBucket = perDevice.get(d.id);
+        const avgs = byBucket
+          ? orderedKeys
+              .map((k) => byBucket.get(k))
+              .filter((g): g is { sum: number; count: number } => !!g)
+              .map((g) => g.sum / g.count)
+          : [];
+        const recentWatts = avgs.length ? round2(avgs[avgs.length - 1]) : 0;
+        const kwh = avgs.length
+          ? round2((avgs.reduce((s, x) => s + x, 0) * hoursPerBucket) / 1000)
+          : 0;
+        return { deviceId: d.id, name: d.name, recentWatts, kwh };
+      })
+      .sort((a, b) => b.recentWatts - a.recentWatts);
+
+    return { period, granularity, buckets, byDevice };
+  }
+
   /** Resumo de consumo e custo (R$) do usuário, com projeção mensal. */
   async summary(userId: string): Promise<{
     totalWatts: number;
@@ -221,10 +317,64 @@ export class EnergyService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /**
+   * Consumo por mês (comparativo entre meses). Usa o kWh acumulado do medidor
+   * (kwhMonth) — pega o maior valor lido em cada mês por conexão e soma a casa.
+   * A retenção de leituras (35d) limita o histórico real a ~1–2 meses; devolve o
+   * que existe, sem inventar meses.
+   */
+  async monthly(
+    userId: string,
+    monthsBack = 6,
+  ): Promise<{ rate: number; months: { month: string; kwh: number; cost: number }[] }> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const rate = user.energyRate;
+    const devices = await this.prisma.device.findMany({
+      where: { userId, supportsEnergy: true },
+      select: { id: true },
+    });
+    const ids = devices.map((d) => d.id);
+    if (ids.length === 0) {
+      return { rate, months: [] };
+    }
+
+    const since = new Date();
+    since.setMonth(since.getMonth() - monthsBack);
+    since.setDate(1);
+    since.setHours(0, 0, 0, 0);
+
+    // Agrega NO BANCO: maior kwhMonth acumulado de cada conexão em cada mês. Feito em
+    // SQL para não esbarrar no teto de linhas — carregar as leituras cortaria os meses
+    // recentes (uma janela longa tem muito mais que HISTORY_MAX_ROWS linhas).
+    const rows = await this.prisma.$queryRaw<{ month: string; deviceMax: number }[]>(Prisma.sql`
+      SELECT to_char(date_trunc('month', "readAt"), 'YYYY-MM') AS month,
+             max("kwhMonth") AS "deviceMax"
+      FROM "EnergyReading"
+      WHERE "deviceId" IN (${Prisma.join(ids)})
+        AND "readAt" >= ${since}
+        AND "kwhMonth" IS NOT NULL
+      GROUP BY month, "deviceId"
+    `);
+
+    // Soma a contribuição de cada conexão por mês.
+    const byMonth = new Map<string, number>();
+    for (const r of rows) {
+      byMonth.set(r.month, (byMonth.get(r.month) ?? 0) + Number(r.deviceMax));
+    }
+
+    const months = [...byMonth.entries()]
+      .map(([month, kwh]) => ({ month, kwh: round2(kwh), cost: round2(kwh * rate) }))
+      .sort((a, b) => (a.month < b.month ? -1 : 1));
+
+    return { rate, months };
+  }
+
   private bucketKey(date: Date, granularity: EnergyGranularity): string {
     const d = new Date(date);
     if (granularity === 'day') {
       d.setHours(0, 0, 0, 0);
+    } else if (granularity === 'minute') {
+      d.setSeconds(0, 0);
     } else {
       d.setMinutes(0, 0, 0);
     }

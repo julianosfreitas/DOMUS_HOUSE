@@ -4,11 +4,12 @@
    (`/dispositivos`) e a página de CONEXÃO/adicionar (`/dispositivos/add`). Mantido
    aqui para zero duplicação após a separação das abas. */
 import * as React from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Lightbulb, Mic, Plug, Power, PowerOff, RefreshCw, Trash2, Wifi } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronDown, Lightbulb, Mic, Plug, Power, PowerOff, RefreshCw, Trash2, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { EnergyChart } from '@/components/energy-chart';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { Device, DeviceType, Protocol } from '@/lib/types';
@@ -40,68 +41,123 @@ export function DeviceRow({
   testing: boolean;
   onRemove: () => void;
 }) {
+  const [open, setOpen] = React.useState(false);
   const Icon = device.type === 'PLUG' ? Plug : Lightbulb;
   const meta = [PROTOCOL_LABEL[device.protocol] ?? device.protocol, TYPE_LABEL[device.type]];
+  if (device.ip) meta.push(device.ip);
+
   return (
-    <Card className="transition-colors hover:border-foreground/15">
-      <CardContent className="flex flex-col gap-4 p-4 sm:p-5">
-        {/* Cabeçalho: ícone · nome/meta · status */}
-        <div className="flex items-start gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-secondary">
-            <Icon className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-medium tracking-tight">{device.name}</p>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
-              {meta.map((m, i) => (
-                <React.Fragment key={m}>
-                  {i > 0 && <span aria-hidden>·</span>}
-                  <span>{m}</span>
-                </React.Fragment>
-              ))}
-              {device.ip && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span className="inline-flex items-center gap-1">
-                    <Wifi className="h-3 w-3" />
-                    {device.ip}
-                  </span>
-                </>
-              )}
-            </p>
-          </div>
-          <StatusBadge status={device.status} />
+    <Card className="overflow-hidden transition-colors hover:border-foreground/15">
+      {/* Linha compacta e clicável — abre o consumo e os controles do aparelho. */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-secondary/40 sm:px-4"
+      >
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary">
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium tracking-tight">{device.name}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">{meta.join(' · ')}</p>
         </div>
+        <StatusBadge status={device.status} />
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
 
-        {/* Ações: energia (primária, à esquerda) · utilitárias (discretas, à direita) */}
-        <div className="flex flex-wrap items-center gap-2">
-          <DeviceCommands device={device} />
-          <div className="ml-auto flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onTest}
-              disabled={testing}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <RefreshCw className={cn('mr-1 h-4 w-4', testing && 'animate-spin')} />
-              {testing ? 'Testando…' : 'Testar'}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onRemove}
-              aria-label="Remover"
-              className="h-9 w-9 text-muted-foreground hover:text-foreground"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+      {open && (
+        <CardContent className="flex flex-col gap-4 border-t border-border/60 p-3 pt-4 sm:px-4">
+          {/* Consumo do aparelho */}
+          <DeviceConsumption device={device} />
+
+          {/* Controles + utilitárias */}
+          <div className="flex flex-wrap items-center gap-2">
+            <DeviceCommands device={device} />
+            <div className="ml-auto flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onTest}
+                disabled={testing}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <RefreshCw className={cn('mr-1 h-4 w-4', testing && 'animate-spin')} />
+                {testing ? 'Testando…' : 'Testar'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onRemove}
+                aria-label="Remover"
+                className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
 
-        <NicknameEditor device={device} />
-      </CardContent>
+          <NicknameEditor device={device} />
+        </CardContent>
+      )}
     </Card>
+  );
+}
+
+/**
+ * Consumo do aparelho: potência recente/média e estimativa de kWh nas últimas 24h,
+ * mais o gráfico. Só carrega os dados quando o card está aberto (lazy) e apenas para
+ * aparelhos que medem energia — os demais mostram um aviso curto.
+ */
+function DeviceConsumption({ device }: { device: Device }) {
+  const history = useQuery({
+    queryKey: ['energy-history', device.id],
+    queryFn: () => api.energyHistory(device.id, '24h', 'hour'),
+    enabled: device.supportsEnergy,
+  });
+
+  if (!device.supportsEnergy) {
+    return (
+      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Zap className="h-3.5 w-3.5" />
+        Este aparelho não mede energia.
+      </p>
+    );
+  }
+
+  const watts = (history.data?.buckets ?? []).map((b) => b.avgWatts);
+  const soma = watts.reduce((s, w) => s + w, 0);
+  const recente = watts.length ? watts[watts.length - 1] : null;
+  const media = watts.length ? soma / watts.length : null;
+  const kwh = watts.length ? soma / 1000 : null; // ~1 leitura agregada por hora
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Zap className="h-3.5 w-3.5 text-chart-2" />
+        Consumo · últimas 24h
+      </p>
+      <div className="grid grid-cols-3 gap-2">
+        <MiniStat label="Recente" value={recente == null ? '—' : `${Math.round(recente)} W`} />
+        <MiniStat label="Média" value={media == null ? '—' : `${Math.round(media)} W`} />
+        <MiniStat label="Estimado" value={kwh == null ? '—' : `${kwh.toFixed(2)} kWh`} />
+      </div>
+      <EnergyChart buckets={history.data?.buckets ?? []} />
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-secondary/60 p-2">
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="text-sm font-semibold tabular-nums">{value}</p>
+    </div>
   );
 }
 

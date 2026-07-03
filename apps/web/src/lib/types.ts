@@ -123,6 +123,36 @@ export interface GamificationSummary {
   };
 }
 
+export type EnergyPeriod = '24h' | '7d' | '30d';
+export type EnergyGranularity = 'minute' | 'hour' | 'day';
+
+/** Consumo de um mês (comparativo entre meses). */
+export interface MonthlyEnergyPoint {
+  month: string; // 'YYYY-MM'
+  kwh: number;
+  cost: number;
+}
+export interface MonthlyEnergy {
+  rate: number;
+  months: MonthlyEnergyPoint[];
+}
+
+/** Contribuição de uma conexão no consumo da casa (na janela selecionada). */
+export interface EnergyDeviceShare {
+  deviceId: string;
+  name: string;
+  recentWatts: number;
+  kwh: number;
+}
+
+/** Histórico agregado da casa inteira (GET /energy/history) — aba Energia. */
+export interface HomeEnergyHistory {
+  period: string;
+  granularity: string;
+  buckets: EnergyBucket[];
+  byDevice: EnergyDeviceShare[];
+}
+
 export interface VoiceResult {
   transcript: string;
   intent: string;
@@ -130,6 +160,18 @@ export interface VoiceResult {
   needsConfirmation: boolean;
   suggestions?: string[];
   latencyMs: number;
+}
+
+/** Métricas de voz agregadas ao vivo do banco (GET /voice/stats) — tela Resultados. */
+export interface VoiceStats {
+  total: number;
+  successCount: number;
+  successRate: number | null; // 0..1
+  latencyP50: number | null; // ms
+  latencyP95: number | null; // ms
+  latencyMax: number | null; // ms
+  latencyAvg: number | null; // ms
+  avgConfidence: number | null; // 0..1
 }
 
 /** Perfil de voz do Voicebox (app local de síntese/clonagem). */

@@ -53,6 +53,16 @@ export class VoiceController {
   }
 
   /**
+   * Métricas de voz agregadas do usuário (n, execução, latência p50/p95/máx,
+   * confiança) — direto das linhas de VoiceCommand. Alimenta a tela Resultados
+   * da defesa. Acurácia de intenção NÃO vem daqui (exige rotulagem manual).
+   */
+  @Get('stats')
+  stats(@CurrentUser() user: AuthUser) {
+    return this.voice.stats(user.id);
+  }
+
+  /**
    * Status do Voicebox (app local de voz). O front usa para mostrar o seletor de
    * voz da assistente. Nunca falha: devolve available:false se o app não responder.
    */

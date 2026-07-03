@@ -17,6 +17,16 @@ export class EnergyController {
     return this.energy.history(user.id, id, query.period, query.granularity);
   }
 
+  @Get('energy/history')
+  homeHistory(@CurrentUser() user: AuthUser, @Query() query: EnergyHistoryQueryDto) {
+    return this.energy.homeHistory(user.id, query.period, query.granularity);
+  }
+
+  @Get('energy/monthly')
+  monthly(@CurrentUser() user: AuthUser) {
+    return this.energy.monthly(user.id);
+  }
+
   @Get('energy/summary')
   summary(@CurrentUser() user: AuthUser) {
     return this.energy.summary(user.id);
