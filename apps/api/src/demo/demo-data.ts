@@ -4,9 +4,9 @@
  */
 
 export const DEMO_USER = {
-  email: 'dev@casai.local',
+  email: 'domus@tcc.com',
   name: 'Casa Demo',
-  password: 'Senha@123',
+  password: 'domus123',
 };
 
 export const DEMO_ROOMS = [

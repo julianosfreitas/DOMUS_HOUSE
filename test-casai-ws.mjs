@@ -15,7 +15,7 @@ const { io } = require('socket.io-client');
 
 const WS = process.env.CASAI_WS ?? 'http://localhost:4000';
 const API = process.env.CASAI_API ?? 'http://localhost:4000/api';
-const CRED = { email: 'dev@casai.local', password: 'Senha@123' };
+const CRED = { email: 'domus@tcc.com', password: 'domus123' };
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {

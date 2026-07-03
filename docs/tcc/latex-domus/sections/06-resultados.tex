@@ -14,7 +14,11 @@ ainda estava em andamento no fechamento desta versão. O Quadro~\ref{tab:panoram
 resume esse estado. A opção por declarar o que ainda não foi medido, em vez de
 preencher lacunas com estimativas, é coerente com a postura de honestidade documental
 assumida no trabalho e evita que a discussão confunda promessa de projeto com
-evidência empírica.
+evidência empírica. Vale registrar que as métricas de voz confirmadas não permanecem
+apenas no banco: o próprio sistema as expõe em um painel de \textit{Resultados} que as
+recalcula ao vivo a partir da tabela \texttt{voice\_commands} e distingue visualmente o
+que é medido do que está em coleta --- transportando para dentro do produto a mesma
+honestidade documental adotada aqui.
 
 \begin{table}[H]
 \centering
@@ -233,8 +237,14 @@ conservador, centrado em viabilidade técnica.
 
 \subsection{Energia}\label{sec:res-energia}
 
-O painel de energia foi implementado e alimentado pela telemetria do Tapo~P110, com um
-volume expressivo de leituras acumuladas no banco. Contudo, a avaliação de
+O painel de energia foi implementado e alimentado pela telemetria do Tapo~P110, que o
+\texttt{EnergyService} coleta em intervalos regulares e persiste na tabela
+\texttt{energy\_readings}, acumulando um volume expressivo de leituras. Sobre essa série,
+o painel agrega o consumo \textbf{da casa inteira} --- somando todas as conexões que
+medem energia --- e o apresenta em janelas de \textbf{24~h, 7 e 30~dias}, com resolução
+que desce ao \textbf{minuto} na janela diária; complementa a leitura com a
+\textbf{participação de cada conexão} no total e um \textbf{comparativo mês a mês}, além
+do consumo por aparelho acessível ao abrir cada dispositivo. Contudo, a avaliação de
 \textbf{economia de energia} propriamente dita está \textbf{a coletar}, por uma razão
 metodológica honesta: as leituras acumuladas foram obtidas com a tomada sem carga útil
 acoplada (potência residual da ordem de fração de \textit{watt}), o que torna a série

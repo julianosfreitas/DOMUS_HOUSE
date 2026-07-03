@@ -192,7 +192,7 @@ dados. E o princípio segue valendo: **a nuvem, uma vez. A casa, para sempre.**
 ## Como rodar
 
 > Tudo roda **sem hardware** graças ao modo MOCK. Credencial de demonstração já semeada:
-> **`dev@casai.local` / `Senha@123`** — ou clique em **"Entrar como demonstração"** no login.
+> **`domus@tcc.com` / `domus123`** — ou clique em **"Entrar como demonstração"** no login.
 
 <p align="center">
   <img src="docs/screenshots/07-login.png" alt="Login" width="620">

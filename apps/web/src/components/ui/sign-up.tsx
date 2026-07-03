@@ -430,7 +430,7 @@ export const AuthComponent = ({ logo = <DefaultLogo />, brandName = 'DOMUS' }: A
     setLoadingMsg('Entrando como demonstração…');
     setModalStatus('loading');
     try {
-      const tokens = await api.signIn('dev@casai.local', 'Senha@123');
+      const tokens = await api.signIn('domus@tcc.com', 'domus123');
       setTokens(tokens.accessToken, tokens.refreshToken);
       onSuccess();
     } catch (err) {

@@ -4,7 +4,7 @@
 // Uso: node test-casai-api.mjs   (API precisa estar em http://localhost:4000)
 
 const BASE = process.env.CASAI_API ?? 'http://localhost:4000/api';
-const CRED = { email: 'dev@casai.local', password: 'Senha@123' };
+const CRED = { email: 'domus@tcc.com', password: 'domus123' };
 
 let pass = 0, fail = 0;
 let token = null;

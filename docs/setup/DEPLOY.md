@@ -39,7 +39,7 @@ docker compose up -d          # db + mqtt + api + web
      `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
    - `WEB_ORIGIN`: a URL da web na Vercel (passo b) — pode preencher depois.
 4. Com `DEMO_MODE=true` (já no blueprint), o boot semeia automaticamente:
-   usuário `dev@casai.local / Senha@123`, 3 dispositivos MOCK (incl. ☕ Cafeteira),
+   usuário `domus@tcc.com / domus123`, 3 dispositivos MOCK (incl. ☕ Cafeteira),
    4 rotinas e 3 cenas. **Sem passo manual de seed.**
 
 ### b) Web — Vercel (free)
@@ -90,4 +90,4 @@ e vira o slide "acesso remoto (fase futura) demonstrado". Custo zero.
 - [ ] PWA instalado no celular (tela inicial)
 - [ ] Roteiro de voz ensaiado ("acende a luz da sala", "desliga a tomada")
 - [ ] URL pública no slide final (QR code ajuda)
-- [ ] Credencial demo no slide: `dev@casai.local / Senha@123` (ou botão 🚀)
+- [ ] Credencial demo no slide: `domus@tcc.com / domus123` (ou botão 🚀)
