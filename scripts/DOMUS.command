@@ -13,6 +13,10 @@
 # ==========================================================================
 set -u
 
+# O Finder lança apps com PATH mínimo (/usr/bin:/bin) e não enxerga node (nvm)
+# nem homebrew. Garante as ferramentas para o launcher funcionar por dois cliques.
+export PATH="/Users/julianofreitas/.nvm/versions/node/v24.15.0/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 API="$ROOT/apps/api"
 WEB="$ROOT/apps/web"
