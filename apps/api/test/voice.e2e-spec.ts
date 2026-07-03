@@ -73,4 +73,39 @@ describe('Voice (e2e)', () => {
     const count = await prisma.voiceCommand.count();
     expect(count).toBe(1);
   });
+
+  it('/voice/stats agrega as métricas de voz do usuário', async () => {
+    const { token } = await setup();
+    await http
+      .post('/api/voice/command')
+      .set({ Authorization: `Bearer ${token}` })
+      .send({ text: 'liga a luz da sala' });
+    await http
+      .post('/api/voice/command')
+      .set({ Authorization: `Bearer ${token}` })
+      .send({ text: 'bom dia minha casa' });
+
+    const res = await http
+      .get('/api/voice/stats')
+      .set({ Authorization: `Bearer ${token}` })
+      .expect(200);
+    expect(res.body.total).toBe(2);
+    expect(res.body.successCount).toBeGreaterThanOrEqual(1);
+    expect(res.body.successRate).toBeGreaterThan(0);
+    expect(res.body.latencyP50).toBeGreaterThanOrEqual(0);
+    expect(res.body.latencyP95).toBeGreaterThanOrEqual(0);
+    expect(res.body).toHaveProperty('avgConfidence');
+  });
+
+  it('/voice/stats sem comandos volta zerado (null nas métricas)', async () => {
+    const { token } = await setup();
+    const res = await http
+      .get('/api/voice/stats')
+      .set({ Authorization: `Bearer ${token}` })
+      .expect(200);
+    expect(res.body.total).toBe(0);
+    expect(res.body.successRate).toBeNull();
+    expect(res.body.latencyP50).toBeNull();
+    expect(res.body.avgConfidence).toBeNull();
+  });
 });

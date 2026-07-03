@@ -77,4 +77,67 @@ describe('Energy (e2e)', () => {
       .set({ Authorization: `Bearer ${other.body.accessToken}` })
       .expect(404);
   });
+
+  it('histórico da casa (/energy/history) agrega e traz breakdown por conexão', async () => {
+    const { token, deviceId } = await setup();
+    await http
+      .post(`/api/devices/${deviceId}/command`)
+      .set({ Authorization: `Bearer ${token}` })
+      .send({ command: 'turnOn' });
+    await energy.pollOnce();
+    await energy.pollOnce();
+
+    const res = await http
+      .get('/api/energy/history?period=24h&granularity=minute')
+      .set({ Authorization: `Bearer ${token}` })
+      .expect(200);
+    expect(Array.isArray(res.body.buckets)).toBe(true);
+    expect(res.body.buckets.length).toBeGreaterThanOrEqual(1);
+    expect(Array.isArray(res.body.byDevice)).toBe(true);
+    expect(res.body.byDevice[0]).toMatchObject({ deviceId, name: 'Tomada' });
+    expect(res.body.byDevice[0].recentWatts).toBeGreaterThan(0);
+  });
+
+  it('comparativo mensal (/energy/monthly) soma o kwhMonth por mês', async () => {
+    const { token, deviceId } = await setup();
+    await http
+      .post(`/api/devices/${deviceId}/command`)
+      .set({ Authorization: `Bearer ${token}` })
+      .send({ command: 'turnOn' });
+    await energy.pollOnce();
+
+    const res = await http
+      .get('/api/energy/monthly')
+      .set({ Authorization: `Bearer ${token}` })
+      .expect(200);
+    expect(res.body.rate).toBeGreaterThan(0);
+    expect(Array.isArray(res.body.months)).toBe(true);
+    expect(res.body.months.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.months[0]).toHaveProperty('kwh');
+    expect(res.body.months[0]).toHaveProperty('cost');
+  });
+
+  it('sem conexões de energia, history e monthly voltam vazios', async () => {
+    const signup = await http
+      .post('/api/auth/sign_up')
+      .send({ email: 'c@casai.local', name: 'Caio', password: 'Senha@123' });
+    const token = signup.body.accessToken as string;
+
+    const h = await http
+      .get('/api/energy/history')
+      .set({ Authorization: `Bearer ${token}` })
+      .expect(200);
+    expect(h.body.buckets).toEqual([]);
+    expect(h.body.byDevice).toEqual([]);
+
+    const m = await http
+      .get('/api/energy/monthly')
+      .set({ Authorization: `Bearer ${token}` })
+      .expect(200);
+    expect(m.body.months).toEqual([]);
+  });
+
+  it('pruneOldReadings executa sem erro', async () => {
+    await expect(energy.pruneOldReadings()).resolves.toBeGreaterThanOrEqual(0);
+  });
 });
