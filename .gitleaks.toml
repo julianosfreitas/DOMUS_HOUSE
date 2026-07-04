@@ -1,0 +1,16 @@
+# Configuracao do gitleaks usada pela CI (job "secrets").
+#
+# O apps/api/.env e versionado deliberadamente (demo local-first, a pedido do
+# dono do projeto), entao as chaves dele nao devem quebrar o secret scanning.
+# Mantemos TODAS as regras default ativas para o restante do repositorio, de
+# modo que segredos acidentais em qualquer outro arquivo continuem sendo pegos.
+title = "DOMUS gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "apps/api/.env versionado de proposito (credenciais de demo local-first)"
+paths = [
+  '''apps/api/\.env$''',
+]
