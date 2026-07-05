@@ -41,7 +41,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning className={`${romario.variable} ${brasil.variable}`}>
-      <body>
+      {/* suppressHydrationWarning no body: extensões (ColorZilla, Grammarly…) injetam
+          atributos como cz-shortcut-listen no <body> antes do React hidratar. */}
+      <body suppressHydrationWarning>
         <Providers>{children}</Providers>
         <ServiceWorkerRegister />
       </body>
