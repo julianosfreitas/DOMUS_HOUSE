@@ -53,10 +53,46 @@ A Figura~\ref{fig:arquitetura} apresenta a visão macro do sistema, do PWA ao
 
 \begin{figure}[H]
 \centering
-% PLACEHOLDER: exportar o diagrama de arquitetura para figures/fig_arquitetura.(png|pdf).
-% Sugestão: PWA -> API NestJS (módulos) -> DeviceAdapterFactory -> {Tuya,Tapo,Mock} -> LAN.
-\includegraphics[width=0.9\textwidth]{fig_arquitetura}
-\caption{Arquitetura em camadas do DOMUS: PWA, \emph{back end} modular e camada de \emph{adapters} sobre a rede local.}
+\begin{tikzpicture}[
+  >=Latex, font=\footnotesize,
+  layer/.style={draw, rounded corners=3pt, align=center, inner sep=5pt,
+                minimum width=0.56\textwidth, fill=black!3},
+  side/.style={draw, rounded corners=2pt, align=center, inner sep=3pt,
+               fill=black!7, font=\scriptsize},
+  dev/.style={draw, rounded corners=2pt, align=center, inner sep=3pt,
+              fill=black!5, minimum width=42mm, minimum height=12mm},
+  arrow/.style={->, very thick},
+  note/.style={font=\scriptsize\itshape, fill=white, inner sep=1.5pt}
+]
+  \node[layer] (pwa)
+    {\textbf{Cliente --- PWA (Next.js\,15 / React)}\\
+     {\scriptsize instalável no celular (\emph{add to home screen}) · tempo real · tema claro/escuro}};
+  \node[layer, below=12mm of pwa] (hub)
+    {\textbf{\textit{Hub} --- \emph{back end} NestJS} (Node\,20 · Prisma · PostgreSQL)\\[2pt]
+     {\scriptsize \texttt{auth}·\texttt{users}·\texttt{devices}·\texttt{automations}·\texttt{scenes}·\texttt{energy}·\texttt{voice}·\texttt{websocket}}\\[1pt]
+     {\scriptsize \textbf{Voz: Whisper (STT) no \emph{hub}} · fila serializada por dispositivo}};
+  \node[layer, below=12mm of hub] (adapt)
+    {\textbf{Camada de \emph{Adapters}} --- \texttt{DeviceAdapterFactory}\\[2pt]
+     {\scriptsize \textbf{TapoAdapter} (KLAP) · \textbf{TuyaAdapter} (LAN\,6668) · \textbf{MockAdapter}}\\
+     {\scriptsize (+ Tuya Cloud · Home Assistant --- aditivos)}};
+  \node[side, right=5mm of hub] (db) {PostgreSQL\\dados +\\métricas};
+  \node[side, left=5mm of adapt] (cloud) {Nuvem\\\emph{só no}\\\emph{comissionar}};
+  \node[dev] (lamp) at ([xshift=-28mm,yshift=-16mm]adapt.south)
+    {\textbf{Lâmpada Intelbras EWS\,410}\\{\scriptsize Wi-Fi · Tuya}};
+  \node[dev] (plug) at ([xshift=28mm,yshift=-16mm]adapt.south)
+    {\textbf{Tomada TP-Link Tapo\,P110}\\{\scriptsize Wi-Fi · KLAP · energia}};
+  \draw[arrow] (pwa) -- node[note] {REST/JWT · WebSocket} (hub);
+  \draw[arrow] (hub) -- node[note] {contrato \texttt{DeviceAdapter}} (adapt);
+  \draw[<->, thick] (hub.east) -- (db.west);
+  \draw[arrow, dashed] (cloud.east) -- (adapt.west);
+  \draw[arrow] (adapt.south) -- (lamp.north);
+  \draw[arrow] (adapt.south) -- (plug.north);
+  \node[note] at ([yshift=-7.5mm]adapt.south) {LAN 2,4\,GHz --- \emph{local-first}};
+\end{tikzpicture}
+\caption{Arquitetura em camadas do DOMUS: o PWA fala com o \emph{hub} NestJS (REST/JWT e
+WebSocket na mesma origem); todo controle de \emph{hardware} passa pela camada de
+\emph{adapters} (\texttt{DeviceAdapterFactory}) sobre a rede local, com a voz processada no
+próprio \emph{hub}. A nuvem entra apenas no comissionamento.}
 \label{fig:arquitetura}
 \end{figure}
 
@@ -166,6 +202,15 @@ trabalho. No PWA, sinais sonoros curtos (\emph{earcons}) indicam os estados
 imediato enquanto a rede responde (DETERDING et al., 2011).
 % VERIFICAR: apontar o componente do PWA que dispara os earcons (apps/web/...).
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.80\textwidth]{01-voz.png}
+\caption{Assistente de voz TUCO no DOMUS: o usuário fala, o Whisper transcreve no
+\emph{hub} e o \textit{parser} interpreta a intenção em português, com \textit{earcons}
+sinalizando os estados ``ouvindo'', ``processando'' e ``executado''.}
+\label{fig:voz-tuco}
+\end{figure}
+
 A avaliação sobre 138 comandos reais mostrou acurácia de intenção de
 \textbf{87{,}7\%} e latência mediana (p50) de \textbf{463~ms} (p95 de 2140~ms),
 com um \emph{outlier} de 12{,}3~s correspondente ao \emph{timeout} de um
@@ -187,6 +232,23 @@ o \emph{device id} e a versão); (ii) varredura TCP da sub-rede nas portas
 típicas de IoT (80, 443, 6668, 9999); e (iii) identificação do fabricante pelo
 prefixo OUI do endereço MAC lido da tabela ARP. O resultado é uma lista de
 candidatos com palpite de protocolo, já pronta para o cadastro.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.80\textwidth]{02-dispositivos.png}
+\caption{Tela de Dispositivos: cada conexão é uma linha enxuta com estado em tempo real
+(a tomada Tapo~P110 física aparece \emph{online}, controlável na rede local).}
+\label{fig:dispositivos}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.80\textwidth]{03-dispositivos-consumo.png}
+\caption{Ao abrir um dispositivo, o DOMUS exibe o consumo do aparelho (potência recente e
+média, kWh estimado e gráfico) e os controles --- dados lidos diretamente do medidor do
+Tapo~P110.}
+\label{fig:dispositivos-consumo}
+\end{figure}
 
 A diferença crucial entre os dois protocolos-alvo está no comissionamento. O
 \textbf{Tapo} é controlável em sua \emph{forma plena}: bastam as credenciais de
@@ -239,6 +301,14 @@ a expressão é validada, evitando gravar uma rotina inagendável; e, no disparo
 executar as ações. Cada disparo emite um evento por WebSocket, que o PWA usa para
 refletir a mudança de estado sem \emph{polling}.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.80\textwidth]{06-rotinas.png}
+\caption{Rotinas e cenas: automações por horário (\emph{cron}) e cenas de um toque
+compartilham o mesmo executor de ações (\texttt{ActionsRunner}).}
+\label{fig:rotinas}
+\end{figure}
+
 \subsection{PWA offline}
 
 A escolha por um PWA (ADR-002) --- em vez de aplicativo nativo --- reforça a tese
@@ -249,6 +319,16 @@ Query, que mantém em \emph{cache} a última leitura conhecida dos dispositivos,
 permitindo que a interface continue exibindo o painel mesmo em oscilações de
 conectividade, enquanto os eventos por WebSocket ressincronizam o estado assim
 que a conexão volta.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.42\textwidth]{07-login.png}\hfill
+\includegraphics[width=0.42\textwidth]{09-mobile-voz.png}
+\caption{À esquerda, a tela de entrada (com login social e o botão ``Entrar como
+demonstração''); à direita, o DOMUS instalado como aplicativo no celular (PWA
+``adicionar à tela inicial''), responsivo e operando na rede local.}
+\label{fig:pwa-mobile}
+\end{figure}
 % [...] — Confirmar e descrever a estratégia de service worker / manifest do PWA
 % (apps/web): o que é pré-cacheado (\emph{app shell}), política de \emph{cache} das
 % chamadas à API e comportamento quando o hub está inacessível. Incluir aqui, se
