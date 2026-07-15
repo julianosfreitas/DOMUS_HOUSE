@@ -1,23 +1,98 @@
 %========================== APÊNDICES ==========================
+% Correção de sumário: os apêndices entram como SUBSEÇÕES não numeradas e a entrada
+% no sumário é adicionada como TEXTO ("APÊNDICE X — ..."), não como número. Assim o
+% rótulo longo não estoura a caixa de número do \numberline (causa da sobreposição).
 \newpage
-\section*{Apêndices}
+\phantomsection
 \addcontentsline{toc}{section}{APÊNDICES}
-\setcounter{section}{0}
-\renewcommand{\thesection}{APÊNDICE \Alph{section}}
-\titleformat{\section}{\normalfont\bfseries}{\thesection\ ---}{0.5em}{\MakeUppercase}
+\section*{APÊNDICES}
 
-\section{Roteiro de tarefas do teste de usabilidade (SUS)}\label{ap:sus}
-% Cole aqui as 5 tarefas aplicadas aos participantes P01--Pxx e o questionário SUS
-% (10 itens, escala Likert 1--5). [...]
+\newcounter{apcount}
+\newcommand{\apendice}[1]{%
+  \par\bigskip
+  \phantomsection
+  \refstepcounter{apcount}%
+  \subsection*{APÊNDICE \Alph{apcount}\ --- #1}%
+  \addcontentsline{toc}{subsection}{APÊNDICE \Alph{apcount}\ --- #1}%
+}
 
-\section{Corpus de comandos de voz}\label{ap:corpus}
-% Lista dos \geq 50 enunciados por \geq 3 falantes usados no cálculo do WER e da
-% matriz de confusão de intenções. [...]
+%------------------------------------------------------------------
+\apendice{Roteiro de tarefas do teste de usabilidade (SUS)}\label{ap:sus}
 
-\section{Lista de materiais e custos (BOM)}\label{ap:bom}
-% Tabela datada com itens, preços e links/notas fiscais, em dois cenários:
-% incremental (PC reaproveitado como hub) e completo (mini-PC/RPi a preço de varejo). [...]
+Cada participante executa, sem treinamento prévio, as cinco tarefas representativas
+abaixo; ao final, responde ao questionário \textit{System Usability Scale} (SUS),
+de dez itens em escala Likert de 1 (discordo totalmente) a 5 (concordo totalmente).
 
-\section{Repositório e artefatos}\label{ap:repo}
-% Endereço do repositório de código, \textit{commit} de referência da defesa e
-% instruções de reprodução. [...]
+\begin{enumerate}
+  \item Comissionar (adicionar) um dispositivo à casa a partir da descoberta na rede.
+  \item Ligar e desligar um aparelho por \textbf{comando de voz} em português.
+  \item Criar uma \textbf{automação por horário} (rotina) para um dispositivo.
+  \item Consultar o \textbf{painel de energia} e identificar o consumo de um aparelho.
+  \item Recuperar-se de uma \textbf{falha simulada} (dispositivo \textit{offline}).
+\end{enumerate}
+
+Os dez itens do SUS e as tarefas acima estão implementados no instrumento de coleta
+descrito no Apêndice~\ref{ap:survey}. A pontuação e a discussão constam da
+Seção~\ref{sec:res-sus} (\textit{a coletar}).
+
+%------------------------------------------------------------------
+\apendice{Corpus de comandos de voz}\label{ap:corpus}
+
+Protocolo do corpus controlado para o cálculo da taxa de erro de palavra (WER) e da
+matriz de confusão de intenções: no mínimo \textbf{50 enunciados} distintos, gravados
+por \textbf{pelo menos três falantes} (variando sotaque e idade), cada um com
+transcrição de referência (\textit{ground truth}) e intenção-verdade rotulada
+manualmente. As categorias de intenção são: \emph{ligar}, \emph{desligar},
+\emph{alternar}, \emph{ajustar brilho} e \emph{ajustar cor}. Lista completa e áudios
+\textit{a coletar} (ver Seção~\ref{sec:res-voz}).
+
+%------------------------------------------------------------------
+\apendice{Instrumento de pesquisa de usuários}\label{ap:survey}
+
+Para validar as premissas do trabalho com usuários reais de diferentes idades e
+regiões (Recife/PE, São Paulo, Rio de Janeiro e participantes na Itália/Sicília), foi
+elaborado um questionário aplicado por formulário eletrônico (Google Forms), anônimo e
+em conformidade com a LGPD. A coleta caracteriza uma avaliação \textbf{direcional}
+(amostra de conveniência, $n = 8$--$15$), não uma inferência estatística. As respostas
+estavam \textbf{em coleta} no fechamento desta versão; a consolidação e os gráficos
+constam da Seção~\ref{sec:res-survey}.
+
+\vspace{0.4em}
+\noindent\textbf{Bloco 1 --- Perfil:} faixa etária (18--24 / 25--34 / 35--44 / 45--59 /
+60+); cidade ou região; escolaridade; familiaridade com tecnologia (1--5); faixa de
+renda familiar (opcional).
+
+\noindent\textbf{Bloco 2 --- Situação atual:} possui algum dispositivo de casa
+inteligente? (sim/não); quais; quem os configurou; frequência de uso.
+
+\noindent\textbf{Bloco 3 --- Intenção e barreiras:} automatizaria a casa se fosse simples
+e barato? (1--5); \emph{maiores dificuldades percebidas} (preço do \textit{hardware};
+complexidade de instalar/parear; depender de nuvem; privacidade; falta de conhecimento
+técnico; \textit{app} do fabricante confuso; medo de indisponibilizar a casa); quanto
+pagaria por uma solução completa; preferência por operação \textit{offline}/local;
+preocupação com privacidade (1--5).
+
+\noindent\textbf{Bloco 4 --- Avaliação do DOMUS (para quem viu a demonstração):}
+os dez itens do SUS (Apêndice~\ref{ap:sus}); ``conseguiria controlar por voz sem o
+\textit{app} do fabricante?''; comentário aberto.
+
+\vspace{0.4em}
+\noindent Formulário público (instrumento aplicado):
+\newline\url{https://docs.google.com/forms/d/e/1FAIpQLSd3DUqWC2W06tpbYuAnqMaZheARLSYvXE7C5gBiCwN0HuOzag/viewform}
+
+%------------------------------------------------------------------
+\apendice{Lista de materiais e custos (BOM)}\label{ap:bom}
+
+Planilha datada, com preços de varejo referenciados (nota fiscal ou \textit{link}),
+em dois cenários: \emph{incremental} (computador doméstico reaproveitado como
+\textit{hub}, custo marginal zero) e \emph{completo} (mini-PC/Raspberry~Pi dedicado).
+Valores \textit{a coletar} (ver Seção~\ref{sec:res-custo}, Tabela~\ref{tab:bom}).
+
+%------------------------------------------------------------------
+\apendice{Repositório e artefatos}\label{ap:repo}
+
+Código-fonte, histórico e instruções de reprodução:
+\newline\url{https://github.com/julianosfreitas/DOMUS_HOUSE} (\textit{branch} \texttt{main}).
+O \textit{commit} de referência da defesa e o roteiro de execução (\emph{back end}
+NestJS + PWA Next.js + PostgreSQL, com modo \textsc{Mock} que dispensa \textit{hardware})
+constam do \texttt{README.md} do repositório.
