@@ -5,7 +5,7 @@
 %========================================================
 \section{Resultados e discussão}\label{cap:resultados}
 
-Este capítulo confronta os critérios de sucesso fixados na Seção~\ref{sec:avaliacao}
+Este capítulo confronta os critérios de sucesso fixados na Seção~\ref{sec:protocolo}
 com o que foi efetivamente medido no protótipo DOMUS. Adota-se, por rigor, uma
 distinção explícita entre \textit{resultados confirmados} --- obtidos por medição
 instrumentada e verificados em hardware ou no banco de dados do \textit{hub} --- e
@@ -156,6 +156,15 @@ textual.
 % INSERIR (semana de métricas): WER global e por falante + matriz de confusão de
 % intenções. Considerar figura fig_matriz_confusao.pdf.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{05-resultados.png}
+\caption{Painel de \textit{Resultados} do DOMUS: as métricas de voz são recalculadas ao
+vivo a partir da tabela \texttt{voice\_commands}, distinguindo visualmente o que é
+\emph{medido} do que está \emph{em coleta} --- a mesma honestidade documental desta seção.}
+\label{fig:painel-resultados}
+\end{figure}
+
 \subsection{Custo (BOM)}\label{sec:res-custo}
 
 O custo total de materiais (\textit{Bill of Materials}, BOM) é a métrica que sustenta
@@ -244,7 +253,18 @@ o painel agrega o consumo \textbf{da casa inteira} --- somando todas as conexõe
 medem energia --- e o apresenta em janelas de \textbf{24~h, 7 e 30~dias}, com resolução
 que desce ao \textbf{minuto} na janela diária; complementa a leitura com a
 \textbf{participação de cada conexão} no total e um \textbf{comparativo mês a mês}, além
-do consumo por aparelho acessível ao abrir cada dispositivo. Contudo, a avaliação de
+do consumo por aparelho acessível ao abrir cada dispositivo.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{04-energia.png}
+\caption{Painel de energia da casa: consumo agregado com seletor de período (24~h em
+resolução de minutos, 7 e 30 dias), participação por conexão e comparativo mensal,
+alimentado pela telemetria real do Tapo~P110.}
+\label{fig:painel-energia}
+\end{figure}
+
+Contudo, a avaliação de
 \textbf{economia de energia} propriamente dita está \textbf{a coletar}, por uma razão
 metodológica honesta: as leituras acumuladas foram obtidas com a tomada sem carga útil
 acoplada (potência residual da ordem de fração de \textit{watt}), o que torna a série
@@ -277,6 +297,26 @@ Enquanto a série com carga não estiver disponível, o resultado honesto é: o
 \emph{economia} proporcionada pela automação \textbf{não foi avaliada}. Essa distinção
 é mantida deliberadamente para não converter capacidade de medição em alegação de
 benefício não comprovado.
+
+\subsection{Validação com usuários}\label{sec:res-survey}
+
+Para confrontar as premissas do trabalho --- sobretudo a de que a barreira dominante é o
+\emph{comissionamento}, e não o preço --- com a percepção de usuários reais, aplicou-se um
+questionário eletrônico (Apêndice~\ref{ap:survey}) a uma amostra de conveniência de
+diferentes faixas etárias e regiões (Recife/PE, São Paulo, Rio de Janeiro e participantes
+na Itália). Trata-se de uma avaliação \textbf{direcional} ($n = 8$--$15$), não de uma
+inferência estatística. No fechamento desta versão, a coleta estava \textbf{em andamento}.
+Os resultados consolidados serão reportados aqui em gráficos gerados a partir das respostas
+reais: (i)~perfil etário e regional da amostra; (ii)~fração que já possui automação
+\emph{versus} a que automatizaria se fosse simples e barata; e, sobretudo, (iii)~o
+\emph{ranking das dificuldades percebidas}, cuja leitura será cruzada com o achado de
+comissionamento (Seção~\ref{sec:res-comissionamento}) para testar, com evidência de
+usuários, a hipótese central do trabalho.
+
+% INSERIR (após a coleta no Google Forms): gerar dos dados REAIS e NÃO antes:
+%  (a) barras horizontais do ranking de barreiras (Bloco 3 do instrumento);
+%  (b) perfil etário/regional + % que já tem automação vs. automatizaria;
+%  (c) SUS médio por faixa etária/cidade. Não reportar números sem coleta real.
 
 \subsection{Comissionamento}\label{sec:res-comissionamento}
 
